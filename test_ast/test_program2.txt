@@ -1,0 +1,9 @@
+Program a;
+Var i,j:integer;
+    
+Begin
+    i:=59;
+    if i > 10 then i:=10;
+    
+    while i < 20 do i:=i+1;
+End.

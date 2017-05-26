@@ -1,0 +1,10 @@
+Program a;
+Var i:integer;
+Begin
+    i:=5;
+    if i<5 then
+        if i>=6 then
+            i:=7
+        else i:= 8
+    else i:=9;
+End.

@@ -1,0 +1,8 @@
+Program a;
+Var i,j:integer;
+    
+Begin
+    i:=59;
+    j:=1;
+    for i:=10 to 25 do j:=j+1;
+End.
