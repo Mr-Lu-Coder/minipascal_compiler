@@ -41,7 +41,8 @@ int add_son_node(struct node *parent, struct node *son)
         if(parent->son==NULL)/*parent还没有添加子节点*/
         {
             parent->son=son;
-			son->parent = parent;    //给父亲赋值
+			son->parent = parent;    //给父亲赋值!!!!!!!!!!!!!!!!!!!!!!!!老师所给代码中没有此句，
+									//导致建立语法树的时候发生错误
         }
         else/*parent已经有若干子节点，则将son添加到该链的末尾*/
         {
@@ -85,7 +86,7 @@ int add_brother_node(struct node *last, struct node *new_brother)
         else
         {
             last->next=new_brother;
-            new_brother->parent=last->parent;
+            new_brother->parent=last->parent;   /////
         }
         return ADD_BROTHER_NODE_SUCCESS;
     }

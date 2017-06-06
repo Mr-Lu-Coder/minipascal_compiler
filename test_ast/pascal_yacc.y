@@ -30,6 +30,8 @@ int yyerror(char*);
 	char _Rop[5];
 	int First;
 	char str[20];
+
+	//**
 	struct node *ast_node;
 	struct {int CH; struct node *nd;} ch_node;
 	struct {int Iv; struct node *nd;} iv_node;
@@ -108,7 +110,7 @@ int yyerror(char*);
 %%
 ProgDef:	Program Iden ';' SubProg '.'
 {
-				printf("\n分析成功\n");
+				//printf("\n分析成功\n");
 				set_node_val_str(&ast_root,$2);
 
 				struct node *tmpnode=NULL;
@@ -121,22 +123,22 @@ ProgDef:	Program Iden ';' SubProg '.'
 				
 
 				complete_init_node(&node2, $2);
-				printf("In ProgDef: %s\n", node2->val.str);
+				//printf("In ProgDef: %s\n", node2->val.str);
 				re = add_brother_node(node1, node2);
 				
 				complete_init_node(&node3, ";");
-				printf("In ProgDef: %s\n", node3->val.str);
+				//printf("In ProgDef: %s\n", node3->val.str);
 				re = add_brother_node(node2,node3);     
 				/*     
 				if (re != ADD_BROTHER_NODE_SUCCESS || re != ADD_SON_NODE_SUCCESS){
 					printf("Add brother error: %d\n", re);
 				} */
 				set_node_val_str($4, "SubProg");          //子程序已经初始化好了
-				printf("In ProgDef: %s\n", $4->val.str);
+				//printf("In ProgDef: %s\n", $4->val.str);
 				add_brother_node(node3, $4);
 
 				complete_init_node(&node4, ".");
-				printf("In ProgDef: %s\n", node4->val.str);
+				//printf("In ProgDef: %s\n", node4->val.str);
 				add_brother_node($4, node4);
 }
 	;
@@ -210,6 +212,7 @@ VarDefState:	VarList':'Type
 		$$.nd = cur;
 		//将Type类型赋值给VarList所有变量，也是一个回填的操作
 		VarBackPatch($1.First, $3.Iv);
+		//printf("Patch: First:%d \n", $1.First);
 		//初始化右值
 		struct node *node1;
 		complete_init_node(&node1, ";");
@@ -273,14 +276,15 @@ VarList:	VarList','Variable
 		add_brother_node(node1, $3.nd);
 		//将变量连接起来，因为变量定义的时候会出现 Var a,b,c:integer的情况
 		//所以需要保存First保存链头
-		$$.First = Merge_var($1.First, $3.NO);
+		$$.First = Merge_var($3.NO, $1.First);
+		//printf("First:%d \n", $$.First);
 		}
 	|	Variable
 		{
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
 		$$.nd = cur;
-		//传递变量的符号，最终Varlist.First 保存的是最后一个变量
+		//传递变量的符号，最终Varlist.First 保存的是第一个变量的place
 		$$.First = $1.NO;
 		//初始化右值
 
@@ -292,12 +296,12 @@ VarList:	VarList','Variable
 //程序主体语句从这开始
 StateList:	S_L Statement
 		{
-		printf("test for StateList\n");
+		//printf("test for StateList\n");
 		//给左边非终结符赋值
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
 		$$.nd = cur;
-		//此处传递的是假链
+		//此处传递的是$2链的出口
 		$$.CH = $2.CH;
 	
 		//初始化右值
@@ -325,14 +329,16 @@ StateList:	S_L Statement
 	;
 S_L:		StateList ';'
 		{
-		printf("test for State_L\n");
+		//printf("test for State_L\n");
 		//给左边非终结符赋值
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
 		$$.nd = cur;
-		
-		$$.CH = $1.CH;
-	
+		//!!!!!!!!!!!!!!!!!!!!
+		///此时分析器刚分析完分号，控制流程将继续顺序执行
+		//所以下一个四元式的序号回填StateList的出口链
+		//$$.CH = $1.CH;
+		BackPatch($1.CH, NXQ);
 		//初始化右值
 		struct node *node1;
 		complete_init_node(&node1, ";");
@@ -464,8 +470,9 @@ Statement:	AsignState
 		add_brother_node(node1, $3.nd);
 
 	    }
-	
-	
+	|
+	{    //需要这个为空也是 有意义的！！！！！！！
+	}
 	;
 ForLoop1: For Iden ':''=' Expr
 {
@@ -528,7 +535,7 @@ ForLoop2: ForLoop1 To Expr
 
 CompState:	Begin StateList End
 		{
-		printf("test for begin and end\n");
+		//printf("test for begin and end\n");
 		//给左边非终结符赋值
 		struct node* cur;
 		complete_init_node(&cur, "NULL");

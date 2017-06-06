@@ -88,6 +88,8 @@ union YYSTYPE
 	char _Rop[5];
 	int First;
 	char str[20];
+
+	//**
 	struct node *ast_node;
 	struct {int CH; struct node *nd;} ch_node;
 	struct {int Iv; struct node *nd;} iv_node;
@@ -100,7 +102,7 @@ union YYSTYPE
 	struct {int loop, place, CH; struct node *nd;} ForLoop_node;
 
 
-#line 104 "pascal_yacc.h" /* yacc.c:1909  */
+#line 106 "pascal_yacc.h" /* yacc.c:1909  */
 };
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1

@@ -1,0 +1,6 @@
+Program a;
+Var i,j:integer;
+    
+Begin
+    i:=59;
+End.
