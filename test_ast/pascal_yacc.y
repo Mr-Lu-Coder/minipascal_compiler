@@ -31,17 +31,85 @@ int yyerror(char*);
 	int First;
 	char str[20];
 
-	//**
+	//抽象语法树的节点
 	struct node *ast_node;
-	struct {int CH; struct node *nd;} ch_node;
-	struct {int Iv; struct node *nd;} iv_node;
-	struct {int First; struct node *nd;} first_node;
-	struct {int CH; int QUAD; struct node *nd;} wbd_node;
-	struct {char _Rop[5]; struct node *nd;} rop_node;
-	struct {int type, place; struct node *nd;} exp_node;
-	struct {int NO; struct node *nd;} no_node;
-	struct {int TC, FC, CH; struct node *nd;} Bexp_node;
-	struct {int loop, place, CH; struct node *nd;} ForLoop_node;
+	//CH节点
+	struct {
+		int CH; 
+		struct node *nd;
+	} ch_node;
+	//类型节点
+	struct {
+		//1 2 3 
+		int type;
+		// 1 2 
+		int Iv; 
+		int array_no;
+		struct node *nd;
+	} iv_node;
+	//变量声明节点
+	struct {
+		int First; 
+		struct node *nd;
+	} first_node;
+	//循环节点
+	struct {
+		int CH; 
+		int QUAD; 
+		struct node *nd;
+	} wbd_node;
+	//rop节点
+	struct {
+		char _Rop[5]; 
+		struct node *nd;
+	} rop_node;
+	//表达式节点
+	struct {
+		int type, place; 
+		struct node *nd;
+	} exp_node;
+	
+	struct {
+		int NO; 
+		struct node *nd;
+		} no_node;
+	struct {
+		int TC, FC, CH; 
+		struct node *nd;
+	} Bexp_node;
+
+	//for循环节点
+	struct {
+		int loop, place, CH; 
+		struct node *nd;
+	} ForLoop_node;
+	//变量节点
+	struct {
+		int NO;
+		int OFFSET; //
+		struct node* nd;
+	}Variable_node;
+	//ExprList
+	struct {
+		int NO; 	  //数组中变量名在符号表中的序号
+		int DIM;      //用于记录已经处理的下标的表达式
+		int tmp_place; //临时变量名的地址
+		struct node* nd;
+	}ExprList_node;
+	
+	//定义类型
+	struct {
+		int DIM;
+		int NO; //数组名在符号表中的序号
+		struct node* nd;
+	}TypeFirst_node;
+
+	//定义类型
+	struct {
+		int L;
+		int U;
+		struct node* nd;
+	}OneDim_node;
 
 }
 /*Define const:  */
@@ -65,6 +133,10 @@ int yyerror(char*);
 %token	<str>	Not			413
 %token	<str>	For			414
 %token	<str>	To			415
+%token	<str>	Repeat		416
+%token	<str>	Until		417
+%token	<str>	Of			418
+%token	<str>	Array		419
 /*Define double_character terminates:   */
 %token			LE			500
 %token			GE			501
@@ -99,13 +171,27 @@ int yyerror(char*);
 %type <rop_node> RelationOp
 %type <exp_node> Expr
 %type <ch_node> Wh
-%type <no_node> Variable 
+%type <Variable_node> Variable 
+%type <ExprList_node> ExprList 
 %type <exp_node> Const 
 %type <Bexp_node>BoolExpr
 %type <Bexp_node>BoolExpr_and 
 %type <Bexp_node>BoolExpr_or 
 %type <ForLoop_node>ForLoop1
 %type <ForLoop_node>ForLoop2 
+
+
+%type <ForLoop_node>DO
+%type <ForLoop_node>DSW
+%type <ForLoop_node>DSWE
+%type <ForLoop_node>RE
+%type <ForLoop_node>RSU
+%type <ForLoop_node>RSUE
+
+
+%type <TypeFirst_node>TypeFirst
+%type <OneDim_node>OneDim
+
 
 %%
 ProgDef:	Program Iden ';' SubProg '.'
@@ -133,7 +219,9 @@ ProgDef:	Program Iden ';' SubProg '.'
 				if (re != ADD_BROTHER_NODE_SUCCESS || re != ADD_SON_NODE_SUCCESS){
 					printf("Add brother error: %d\n", re);
 				} */
-				set_node_val_str($4, "SubProg");          //子程序已经初始化好了
+
+				//子程序已经初始化好了，只需设置名字
+				set_node_val_str($4, "SubProg");          
 				//printf("In ProgDef: %s\n", $4->val.str);
 				add_brother_node(node3, $4);
 
@@ -175,8 +263,9 @@ VarDef:		Var VarDefList ';'
 
 		}
 	;
-VarDefList:	VarDefList';'VarDefState
+VarDefList:	VarDefList ';' VarDefState
         {
+		//puts("reduce real");
 		//初始化左值
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
@@ -193,6 +282,7 @@ VarDefList:	VarDefList';'VarDefState
 		}
 	|	VarDefState
 	    {
+		//puts("reduce real");
 		//初始化左值
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
@@ -205,34 +295,47 @@ VarDefList:	VarDefList';'VarDefState
 	;
 VarDefState:	VarList':'Type
 		{
-
+		
 		//初始化左值
+		//puts("AAA");
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
 		$$.nd = cur;
 		//将Type类型赋值给VarList所有变量，也是一个回填的操作
-		VarBackPatch($1.First, $3.Iv);
+		//puts("AAAen");
+		//printf("%d\n",$3.Iv);
+		if ($3.type == INT || $3.type == REAL) {
+			VarBackPatch($1.First, $3.type);
+		}
+		else {
+			VarBackArrayPatch($1.First, $3.type, $3.Iv, $3.array_no);
+		}
+		
+		//puts("AAAend");
 		//printf("Patch: First:%d \n", $1.First);
 		//初始化右值
 		struct node *node1;
-		complete_init_node(&node1, ";");
+		complete_init_node(&node1, ":");
 		set_node_val_str($1.nd,"VarList");
 		set_node_val_str($3.nd,"Type");
 		//建立关系
 		add_son_node($$.nd ,$1.nd);
 		add_brother_node($1.nd,node1); 
 		add_brother_node(node1,$3.nd);  
+		//puts("AAAend");
 
 		}
 	;
 Type:		Integer
 		{
+		//printf("INTAAA\n");
 		//初始化左值
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
 		$$.nd = cur;
 		//类型设置为整型
-		$$.Iv = INT;
+		$$.type = INT;
+		$$.Iv = 0;
 		struct node *node1;
 		complete_init_node(&node1, "Integer");
 
@@ -242,13 +345,15 @@ Type:		Integer
 		}
 	|	Real
 		{
+		//printf("REALAAA\n");
 		//初始化左值
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
 		$$.nd = cur;
 		//初始化右值
 		//类型设置为实型
-		$$.Iv = REAL;
+		$$.type = REAL;
+		$$.Iv = 0;
 		struct node *node1;
 		complete_init_node(&node1, "Real");
 
@@ -256,7 +361,143 @@ Type:		Integer
 
 
 		}
+	|  TypeFirst ']' Of Integer
+		{
+		//printf("REALAAA\n");
+		//初始化左值
+		struct node* cur;
+		complete_init_node(&cur, "NULL");
+		$$.nd = cur;
+
+		//初始化右值
+		//类型设置为整型
+		$$.type = ARRAY;
+		$$.Iv = INT;
+
+		//注意上传数组在类型表中的位置
+		$$.array_no = $1.NO;
+		struct node *node1, *node2, *node3;
+		complete_init_node(&node1, "]");
+		complete_init_node(&node2, "Of");
+		complete_init_node(&node3, "Integer");
+		set_node_val_str($1.nd,"TypeFirst");
+
+		//建立关系
+		add_son_node($$.nd ,$1.nd);
+		add_brother_node($1.nd,node1); 
+		add_brother_node(node1,node2);  
+		add_brother_node(node2,node3);  
+
+		}
+	| TypeFirst ']' Of Real
+		{
+		//printf("REALAAA\n");
+		//初始化左值
+		struct node* cur;
+		complete_init_node(&cur, "NULL");
+		$$.nd = cur;
+
+		//初始化右值
+		//类型设置为实型
+		$$.type = ARRAY;
+		$$.Iv = REAL;
+		//注意上传数组在类型表中的位置
+		$$.array_no = $1.NO;
+
+		struct node *node1, *node2, *node3;
+		complete_init_node(&node1, "]");
+		complete_init_node(&node2, "Of");
+		complete_init_node(&node3, "Real");
+		set_node_val_str($1.nd,"TypeFirst");
+
+		//建立关系
+		add_son_node($$.nd ,$1.nd);
+		add_brother_node($1.nd,node1); 
+		add_brother_node(node1,node2);  
+		add_brother_node(node2,node3);  
+		}
 	;
+TypeFirst : TypeFirst ',' OneDim
+		{
+		//printf("REALAAA\n");
+		//初始化左值
+		struct node* cur;
+		complete_init_node(&cur, "NULL");
+		$$.nd = cur;
+		
+		//更新D和C
+		int k = $1.DIM + 1;
+		Update_C($1.NO, k, $3.L, $3.U);
+		Update_D($1.NO, k, $3.L, $3.U);
+
+
+		//更新typefirst
+		$$.NO = $1.NO;
+		$$.DIM = k;
+
+
+		struct node *node1;
+		complete_init_node(&node1, ",");
+		set_node_val_str($3.nd,"OneDim");
+		set_node_val_str($1.nd,"TypeFirst");
+
+		//建立关系
+		add_son_node($$.nd, $1.nd);
+		add_brother_node($1.nd,node1); 
+		add_brother_node(node1,$3.nd);  
+
+			
+		} 
+		|   Array '[' OneDim
+		{
+		//printf("REALAAA\n");
+		//初始化左值
+		struct node* cur;
+		complete_init_node(&cur, "NULL");
+		$$.nd = cur;
+
+		$$.DIM = 1;
+		$$.NO = New_Array_Type();
+		Update_D($$.NO, $$.DIM, $3.L, $3.U);
+
+
+		struct node *node1, *node2;
+		complete_init_node(&node1, "Array");
+		complete_init_node(&node2, "[");
+		set_node_val_str($3.nd,"OneDim");
+
+		//建立关系
+		add_son_node($$.nd, node1);
+		add_brother_node(node1,node2); 
+		add_brother_node(node2,$3.nd);  
+
+		}
+		;
+
+
+OneDim : IntNo '.''.' IntNo	 
+	{
+		//printf("REALAAA\n");
+		//初始化左值
+		struct node* cur;
+		complete_init_node(&cur, "NULL");
+		$$.nd = cur;
+
+		$$.L = atoi($1);
+		$$.U = atoi($4);
+
+		struct node *node1, *node2, *node3;
+		complete_init_node(&node1, $1);
+		complete_init_node(&node2, "..");
+		complete_init_node(&node3, $4);
+
+		//建立关系
+		add_son_node($$.nd, node1);
+		add_brother_node(node1,node2); 
+		add_brother_node(node2,node3);  
+
+
+	}
 VarList:	VarList','Variable
 		{
 		struct node* cur;
@@ -275,7 +516,7 @@ VarList:	VarList','Variable
 		add_brother_node($1.nd, node1);
 		add_brother_node(node1, $3.nd);
 		//将变量连接起来，因为变量定义的时候会出现 Var a,b,c:integer的情况
-		//所以需要保存First保存链头
+		//所以需要保存First保存链头,这里是$1.First.addr = $3.NO
 		$$.First = Merge_var($3.NO, $1.First);
 		//printf("First:%d \n", $$.First);
 		}
@@ -423,6 +664,48 @@ Statement:	AsignState
 
 
 		}
+	|   DSW BoolExpr
+		{
+		//给左边非终结符赋值
+		struct node* cur;
+		complete_init_node(&cur, "NULL");
+		$$.nd = cur;
+		
+		//回填bool表达式的真出口
+		BackPatch($2.TC, $1.loop);
+		//将bool表达式的假出口上传
+		$$.CH = $2.FC;
+
+
+		set_node_val_str($1.nd, "DSW");
+		set_node_val_str($2.nd, "BoolExpr");
+		
+		//关系
+		add_son_node($$.nd, $1.nd);
+		add_brother_node($1.nd, $2.nd);
+
+		
+		}
+	|   RSU BoolExpr
+		{
+
+		//给左边非终结符赋值
+		struct node* cur;
+		complete_init_node(&cur, "NULL");
+		$$.nd = cur;
+		//回填bool表达式的假出口
+		BackPatch($2.FC, $1.loop);
+		//将bool表达式的假真出口上传
+		$$.CH = $2.TC;
+
+		set_node_val_str($1.nd, "DSW");
+		set_node_val_str($2.nd, "BoolExpr");
+		
+		//关系
+		add_son_node($$.nd, $1.nd);
+		add_brother_node($1.nd, $2.nd);
+		
+		}
 	|	CompState
 	    {
 		//给左边非终结符赋值
@@ -472,6 +755,8 @@ Statement:	AsignState
 	    }
 	|
 	{    //需要这个为空也是 有意义的！！！！！！！
+	//   StateList:	S_L Statement
+	//因为存在上述文法，所以Statement可以为空
 	}
 	;
 ForLoop1: For Iden ':''=' Expr
@@ -913,10 +1198,21 @@ Expr:		Expr'+'Expr
 		complete_init_node(&cur, "NULL");
 		$$.nd = cur;
 		//将变量在符号表中的类型和位置给表达式
-		$$.type = INT;
-		$$.place = $1.NO;
+		// !!!!!!!!!!!!!!!!!!!!!!!!!
+		//!!!!!!!!!!!!!!!!!!!!!!!!!!有问题
 
-		set_node_val_str($1.nd, "Variable");
+		//$$.type = INT;
+		if (!$1.OFFSET) {
+			$$.place = $1.NO;
+			set_node_val_str($1.nd, "Variable");
+		}
+		else {
+			int T = NewTemp();
+			GEN("=[]", $1.NO, $1.OFFSET, T);
+			$$.place = T;
+			set_node_val_str($1.nd, "VariaArray");
+		}
+
 		//关系
 		add_son_node($$.nd, $1.nd);
 
@@ -938,6 +1234,8 @@ Expr:		Expr'+'Expr
 
 		}
 	;
+
+
 
 BoolExpr:	Expr RelationOp Expr
 		{
@@ -1107,7 +1405,73 @@ BoolExpr_and: BoolExpr And
 
 }
 
+ExprList: ExprList ',' Expr
+		{
+		//给左边非终结符赋值
+			struct node* cur;
+			complete_init_node(&cur, "NULL");
+			$$.nd = cur;
 
+			int k, d;
+			int T1 = NewTemp();
+			int T2 = NewTemp();
+			k = $1.DIM + 1;
+
+			d = Access_d($1.NO, k);
+			printf("%d....\n", d);
+			//生成四元式
+			GEN(":=",d, 0, T1);
+			GEN("*", $1.tmp_place, T1, T2);
+			GEN("+", $3.place, T2, T2);
+
+			//上传
+			$$.NO = $1.NO;
+			$$.tmp_place = T2;
+			$$.DIM = k;
+
+			//初始化右值
+			struct node*node1;
+
+			complete_init_node(&node1, ",");
+
+			set_node_val_str($1.nd, "ExprList");
+			set_node_val_str($1.nd, "Expr");
+
+			//关系
+			add_son_node($$.nd, $1.nd);
+			add_brother_node($1.nd, node1);
+			add_brother_node(node1, $3.nd);
+
+
+		}
+		| Iden '[' Expr 
+		{
+			//给左边非终结符赋值
+			struct node* cur;
+			complete_init_node(&cur, "NULL");
+			$$.nd = cur;
+
+
+			$$.NO = Entry($1);
+			$$.DIM = 1;
+			//相当于VARPART = Ii;
+			$$.tmp_place = $3.place;
+
+
+			//初始化右值
+			struct node*node1, *node2;
+
+			complete_init_node(&node1, $1);
+			complete_init_node(&node2, "[");
+
+			set_node_val_str($3.nd, "Expr");
+
+			//关系
+			add_son_node($$.nd, node1);
+			add_brother_node(node1, node2);
+			add_brother_node(node2, $3.nd);
+		}
+	;
 Variable:	Iden
 		{ 
 		struct node* cur;
@@ -1115,6 +1479,8 @@ Variable:	Iden
 		$$.nd = cur;
 		//获取标示符的下标
 		$$.NO = Entry($1);
+		//此时为普通变量
+		$$.OFFSET = 0;
 
 		//初始化右值
 		struct node *node1;
@@ -1122,6 +1488,27 @@ Variable:	Iden
 		//关系
 		add_son_node($$.nd, node1);
 			
+		}
+	|   ExprList ']'
+		{
+		struct node* cur;
+		complete_init_node(&cur, "NULL");
+		$$.nd = cur;
+
+		int a, C;
+		int T = NewTemp();
+		C = Access_C($1.NO);
+		a = Access_a($1.NO);
+
+		//产生a - C的代码
+		GEN("-", a, C, T);
+
+		$$.NO = T;
+		$$.OFFSET = $1.tmp_place;
+
+
+
+	
 		}
 	;
 Const:		IntNo
@@ -1150,6 +1537,7 @@ Const:		IntNo
 		//则需要添加到表中
 		$$.type = REAL;
 		$$.place = Entry($1); 
+		//printf("%s", $1);
 		//同时在符号表中设置类型
 		VarList[VarCount].type = REAL;
 		//初始化右值
@@ -1245,6 +1633,94 @@ RelationOp:	'<'
 		add_son_node($$.nd, node1);
 		}
 	;
+
+DO: Do
+{
+	//给左边非终结符赋值
+	struct node* cur;
+	complete_init_node(&cur, "NULL");
+	$$.nd = cur;
+	//下一个四元式是循环起始位置
+	$$.loop = NXQ;
+
+	//初始化右值
+	struct node *node1;
+	complete_init_node(&node1, "Do");
+	//关系
+	add_son_node($$.nd, node1);
+
+}
+;
+DSW: DO Statement While
+{
+	//给左边非终结符赋值
+	struct node* cur;
+	complete_init_node(&cur, "NULL");
+	$$.nd = cur;
+	
+	//将循环起始位置上传
+	$$.loop = $1.loop;
+	//同时由与bool表达式语句出现，因此回填出口
+	BackPatch($2.CH, NXQ);
+
+	//初始化右值
+	struct node*node1;
+	complete_init_node(&node1, "While");
+
+	set_node_val_str($1.nd, "DO");
+	set_node_val_str($2.nd, "Statement");
+		
+	//关系
+	add_son_node($$.nd, $1.nd);
+	add_brother_node($1.nd, $2.nd);
+	add_brother_node($2.nd, node1);
+
+}
+;
+
+
+
+RE: Repeat
+{
+	//给左边非终结符赋值
+	struct node* cur;
+	complete_init_node(&cur, "NULL");
+	$$.nd = cur;
+	//下一个四元式是循环起始位置
+	$$.loop = NXQ;
+
+	//初始化右值
+	struct node *node1;
+	complete_init_node(&node1, "Repeat");
+	//关系
+	add_son_node($$.nd, node1);
+}
+;
+RSU: RE Statement Until
+{
+	//给左边非终结符赋值
+	struct node* cur;
+	complete_init_node(&cur, "NULL");
+	$$.nd = cur;
+	
+	//将循环起始位置上传
+	$$.loop = $1.loop;
+	//同时由与bool表达式语句出现，因此回填出口
+	BackPatch($2.CH, NXQ);
+
+	//初始化右值
+	struct node*node1;
+	complete_init_node(&node1, "Until");
+
+	set_node_val_str($1.nd, "Repeat");
+	set_node_val_str($2.nd, "Statement");
+		
+	//关系
+	add_son_node($$.nd, $1.nd);
+	add_brother_node($1.nd, $2.nd);
+	add_brother_node($2.nd, node1);
+}
+;
 
 %%
 

@@ -5,11 +5,18 @@
 
 #include "table.h"
 #include "pascal_yacc.h"
+#define INT 0
+#define REAL 1
+#define ARRAY 2
 
 table_variable VarList[TABLE_MAX_VAR_NUM];//
+array_variable TypeList[TABLE_MAX_VAR_NUM];
+
+
+
 //符号表
 int VarCount = 0;
-
+int TypeCount = 0;
 
 
 int tmp_cnt = 0;
@@ -65,15 +72,35 @@ void OutputVarList(void)
 
 	for (i = 1; i<= VarCount; i++) {
 		printf("%4d\t%6s\t\t", i, VarList[i].name);
-		if (VarList[i].type) {
+		//pritf("%d")
+		if (VarList[i].type == REAL) {
 			printf(" REAL  \n");
 		}
-		else {
+		else if (VarList[i].type == INT){
 			printf(" INTEGER\n");
+		}
+		else {
+			if (VarList[i].Iv == INT)
+				printf("INTEGER ARRAY\n");
+
+			else printf("REAL ARRAY\n");
 		}
 	}
 
 	return;
+}
+
+void OutputTypeList(void)
+{
+	int i = 0;
+	for (i = 1; i <= TypeCount; i++)
+	{
+		printf("N: %d.\t C: %d\t a: %d\n", TypeList[i].n, TypeList[i].C, TypeList[i].a);
+		int j;
+		for (j = 1; j <= TypeList[i].n; j++) {
+			printf("L: %d.\t U : %d\t D: %d\n", TypeList[i].L[j], TypeList[i].U[j], TypeList[i].D[j]);
+		}
+	}
 }
 
 int LookUp(char *Name)
@@ -95,6 +122,7 @@ int Enter(char *Name)
 		printf("There is no enough space!\n");
 	}
 	strncpy(VarList[VarCount].name, Name, sizeof(Name));
+	VarList[VarCount].addr = 0;
 	
 	return VarCount;
 }
@@ -105,6 +133,10 @@ int Entry(char *Name)
 	if (i> 0) return i;
 	else return Enter(Name);
 }
+
+
+
+
 
 int NewTemp()
 {
@@ -122,16 +154,86 @@ int Merge_var(int p1, int p2)
 }
 
 
-void VarBackPatch(int p, int t)
+void VarBackPatch(int p, int type)
 {
 	int q = p;
+	//printf("%d %d %d", q, VarList[q].addr, t);
 	while (q) {
-		VarList[q].addr = t;
+		//注意此处不能颠倒
+		int tmp = q;
 		q = VarList[q].addr;
+		VarList[tmp].type= type;
 	}
 
 }
 
 
+void VarBackArrayPatch(int p, int type, int Iv, int array_no)
+{
+	int q = p;
+	//printf("%d %d %d", q, VarList[q].addr, t);
+	while (q) {
+		//注意此处不能颠倒
+		int tmp = q;
+		q = VarList[q].addr;
+		VarList[tmp].type= type;
+		VarList[tmp].Iv = Iv;
+		VarList[tmp].array_no = array_no;
+	}
+
+}
+
+int New_Array_Type()
+{
+	TypeCount ++ ;
+	TypeList[TypeCount].n = 0;
+	TypeList[TypeCount].C = 0;
+	//!!!!!!!!!!!!!!!!!!!!!!!!!!1 如何给一个数组分配空间
+	TypeList[TypeCount].a = 0;
+	return TypeCount;
+}
+
+void Update_D(int no, int dim, int L, int R)
+{
 
 
+	TypeList[no].n = dim;
+	TypeList[no].L[dim] = L;
+	TypeList[no].U[dim] = R;
+	TypeList[no].D[dim] = R-L+1;
+}
+
+void Update_C(int no, int dim, int L, int R)
+{
+	
+	if (dim == 2) TypeList[no].C = 1;
+
+	TypeList[no].C = TypeList[no].C * ((R-L+1) + L);
+}
+
+
+//从符号表第NO项的addr域取得C
+int Access_C(int no)
+{
+	no = VarList[no].array_no;
+	if (no == 0) 
+		printf("no eixst array!\n");
+	return TypeList[no].C;
+
+}
+//取得a
+int Access_a(int no)
+{
+	no = VarList[no].array_no;
+	if (no == 0) 
+		printf("no eixst array!\n");
+	return TypeList[no].a;
+}
+//取得d
+int Access_d(int no, int k)
+{
+	no = VarList[no].array_no;
+	if (no == 0) 
+		printf("no eixst array!\n");
+	return TypeList[no].D[k];
+}

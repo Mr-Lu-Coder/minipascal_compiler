@@ -1,0 +1,7 @@
+Program a;
+Var j,k:array [1 .. 10,1 .. 5] of real;
+Begin
+    
+    k[3,2]:=3.4;
+
+End.

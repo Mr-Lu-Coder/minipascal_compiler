@@ -3,15 +3,29 @@
 
 #define TABLE_MAX_IDENT_NAME_LEN 20
 #define TABLE_MAX_VAR_NUM 200
-
+#define TABLE_MAX_ARRAY_NUM 200
 
 typedef struct table_variable__ {
 	char name[TABLE_MAX_IDENT_NAME_LEN]; // 变量名
 	int type; // 类型
+	int Iv;   //如果是数组，分int real
 	int addr; // 地址
+	int array_no; //如果是array类型的，那么array_no为array_variable的下标
 } table_variable;
 
+typedef struct array_variable__ {
+	int n;
+	int C;
+	int a;
+	int L[TABLE_MAX_ARRAY_NUM];
+	int U[TABLE_MAX_ARRAY_NUM];
+	int D[TABLE_MAX_ARRAY_NUM];
+}array_variable;
+
+
 extern table_variable VarList[TABLE_MAX_VAR_NUM];
+
+extern array_variable TypeList[TABLE_MAX_VAR_NUM];
 
 
 //输出符号表
@@ -30,8 +44,27 @@ int Entry(char *Name);
 int NewTemp();
 
 extern VarCount;
+//合并变量声明
 int Merge_var(int p1, int p2);
+//回填变量
 void VarBackPatch(int p, int t);
+//回填数组类型的变量
+void VarBackArrayPatch(int p, int type, int Iv, int array_no);
+//新建一个数组类型
+int New_Array_Type();
+//更新D
+void Update_D(int no, int dim, int L, int R);
+//更新C
+void Update_C(int no, int dim, int L, int R);
+
+//从符号表第NO项的addr域取得C
+int Access_C(int no);
+//取得a
+int Access_a(int no);
+//取得d
+int Access_d(int no, int k);
+
+
 
 #endif
 

@@ -1,8 +1,6 @@
 Program a;
-Var i,j:integer;
-    
+Var j,k:real;
 Begin
-    i:=59;
-    j:=1;
-    for i:=10 to 25 do j:=j+1;
+    
+    k:=3.4;
 End.

@@ -309,7 +309,7 @@ extern int yylex (void);
 #undef YY_DECL
 #endif
 
-#line 72 "pascal_lex.l"
+#line 76 "pascal_lex.l"
 
 
 #line 316 "pascal_lex.h"

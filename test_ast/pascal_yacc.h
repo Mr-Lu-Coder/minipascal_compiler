@@ -64,6 +64,10 @@ extern int yydebug;
     Not = 413,
     For = 414,
     To = 415,
+    Repeat = 416,
+    Until = 417,
+    Of = 418,
+    Array = 419,
     LE = 500,
     GE = 501,
     NE = 502,
@@ -89,20 +93,88 @@ union YYSTYPE
 	int First;
 	char str[20];
 
-	//**
+	//抽象语法树的节点
 	struct node *ast_node;
-	struct {int CH; struct node *nd;} ch_node;
-	struct {int Iv; struct node *nd;} iv_node;
-	struct {int First; struct node *nd;} first_node;
-	struct {int CH; int QUAD; struct node *nd;} wbd_node;
-	struct {char _Rop[5]; struct node *nd;} rop_node;
-	struct {int type, place; struct node *nd;} exp_node;
-	struct {int NO; struct node *nd;} no_node;
-	struct {int TC, FC, CH; struct node *nd;} Bexp_node;
-	struct {int loop, place, CH; struct node *nd;} ForLoop_node;
+	//CH节点
+	struct {
+		int CH; 
+		struct node *nd;
+	} ch_node;
+	//类型节点
+	struct {
+		//1 2 3 
+		int type;
+		// 1 2 
+		int Iv; 
+		int array_no;
+		struct node *nd;
+	} iv_node;
+	//变量声明节点
+	struct {
+		int First; 
+		struct node *nd;
+	} first_node;
+	//循环节点
+	struct {
+		int CH; 
+		int QUAD; 
+		struct node *nd;
+	} wbd_node;
+	//rop节点
+	struct {
+		char _Rop[5]; 
+		struct node *nd;
+	} rop_node;
+	//表达式节点
+	struct {
+		int type, place; 
+		struct node *nd;
+	} exp_node;
+	
+	struct {
+		int NO; 
+		struct node *nd;
+		} no_node;
+	struct {
+		int TC, FC, CH; 
+		struct node *nd;
+	} Bexp_node;
+
+	//for循环节点
+	struct {
+		int loop, place, CH; 
+		struct node *nd;
+	} ForLoop_node;
+	//变量节点
+	struct {
+		int NO;
+		int OFFSET; //
+		struct node* nd;
+	}Variable_node;
+	//ExprList
+	struct {
+		int NO; 	  //数组中变量名在符号表中的序号
+		int DIM;      //用于记录已经处理的下标的表达式
+		int tmp_place; //临时变量名的地址
+		struct node* nd;
+	}ExprList_node;
+	
+	//定义类型
+	struct {
+		int DIM;
+		int NO; //数组名在符号表中的序号
+		struct node* nd;
+	}TypeFirst_node;
+
+	//定义类型
+	struct {
+		int L;
+		int U;
+		struct node* nd;
+	}OneDim_node;
 
 
-#line 106 "pascal_yacc.h" /* yacc.c:1909  */
+#line 178 "pascal_yacc.h" /* yacc.c:1909  */
 };
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1

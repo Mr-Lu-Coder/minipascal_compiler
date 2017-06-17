@@ -60,6 +60,8 @@ int main(int argc, char *argv[])
 	puts("输出符号表");
 	OutputVarList();
 
+	puts("输出类型表");
+	OutputTypeList();
 	//输出抽象语法树
 	puts("画出语法树");
 	draw_ast(&ast_root, 0);
