@@ -68,6 +68,7 @@ extern int yydebug;
     Until = 417,
     Of = 418,
     Array = 419,
+    OneDimString = 420,
     LE = 500,
     GE = 501,
     NE = 502,
@@ -174,7 +175,7 @@ union YYSTYPE
 	}OneDim_node;
 
 
-#line 178 "pascal_yacc.h" /* yacc.c:1909  */
+#line 179 "pascal_yacc.h" /* yacc.c:1909  */
 };
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1

@@ -49,6 +49,7 @@ white		[\t\n\040]
 ({d}+(\.{d}*)?[Ee]([+-])?{d}+)|({d}*\.{d}+[Ee]([+-])?{d}+)	{ECHO;strcpy(yylval.str,yytext);return RealNo;}
 {d}+\.{d}*|{d}*\.{d}+										{ECHO;strcpy(yylval.str,yytext);return RealNo;}
 {d}+														{ECHO;strcpy(yylval.str,yytext);return IntNo;}
+{d}+[" "\t]*\.\.[" "\t]*{d}+                                  {ECHO;strcpy(yylval.str,yytext);return OneDimString;}
 
 "("			{ECHO;return '(';}
 ")"			{ECHO;return ')';}

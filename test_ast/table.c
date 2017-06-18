@@ -130,6 +130,7 @@ int Enter(char *Name)
 int Entry(char *Name)
 {
 	int i = LookUp(Name);
+	//printf("%d", i);
 	if (i> 0) return i;
 	else return Enter(Name);
 }
@@ -236,4 +237,34 @@ int Access_d(int no, int k)
 	if (no == 0) 
 		printf("no eixst array!\n");
 	return TypeList[no].D[k];
+}
+
+
+void Get_L_and_U(char *str, int *L, int *U)
+{
+	int len = strlen(str);
+	//puts(str);
+	//printf("%d", len);
+	int i;
+	int ll = 0;
+	int rr = 0;
+	int flag = 0;
+	for (i = 0; i < len; i++) {
+		if (str[i] == ' ' || str[i] == '\t' || str[i] == '.') {
+			flag = 1;
+			continue;
+		}
+		if (flag == 0) {
+			ll = ll * 10 + str[i] - '0';
+		}
+		else {
+			//printf("%c", str[i]);
+			rr = rr * 10 + str[i] - '0';
+		}
+		(*L) = ll;
+		(*U) = rr;
+	}
+
+
+
 }

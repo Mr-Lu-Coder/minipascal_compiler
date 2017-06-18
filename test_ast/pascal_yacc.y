@@ -137,6 +137,7 @@ int yyerror(char*);
 %token	<str>	Until		417
 %token	<str>	Of			418
 %token	<str>	Array		419
+%token	<str>	OneDimString	420
 /*Define double_character terminates:   */
 %token			LE			500
 %token			GE			501
@@ -183,10 +184,8 @@ int yyerror(char*);
 
 %type <ForLoop_node>DO
 %type <ForLoop_node>DSW
-%type <ForLoop_node>DSWE
 %type <ForLoop_node>RE
 %type <ForLoop_node>RSU
-%type <ForLoop_node>RSUE
 
 
 %type <TypeFirst_node>TypeFirst
@@ -196,7 +195,7 @@ int yyerror(char*);
 %%
 ProgDef:	Program Iden ';' SubProg '.'
 {
-				//printf("\n分析成功\n");
+				printf("\n分析成功\n");
 				set_node_val_str(&ast_root,$2);
 
 				struct node *tmpnode=NULL;
@@ -497,7 +496,26 @@ OneDim : IntNo '.''.' IntNo
 		add_brother_node(node2,node3);  
 
 
-	}
+	}| OneDimString{
+		printf("***************\n");
+		struct node* cur;
+		complete_init_node(&cur, "NULL");
+		$$.nd = cur;
+		int L, U;
+		Get_L_and_U($1, &L, &U);
+
+		$$.L = L;
+		$$.U = U;
+		//printf("\n*** %d %d\n", $$.L, $$.U);
+		struct node *node1;
+		complete_init_node(&node1, $1);
+
+		//建立关系
+		add_son_node($$.nd, node1);
+	  }
+	
+	
+	;
 VarList:	VarList','Variable
 		{
 		struct node* cur;
@@ -535,7 +553,7 @@ VarList:	VarList','Variable
 		}
 	;
 //程序主体语句从这开始
-StateList:	S_L Statement
+StateList:	S_L Statement ';'
 		{
 		//printf("test for StateList\n");
 		//给左边非终结符赋值
@@ -548,13 +566,17 @@ StateList:	S_L Statement
 		//初始化右值
 		set_node_val_str($1.nd, "S_L");
 		set_node_val_str($2.nd, "Statement");
-		
+		struct node *node1;
+		complete_init_node(&node1, ";");
 		//关系
 		add_son_node($$.nd, $1.nd);
 		add_brother_node($1.nd, $2.nd);
+		add_brother_node($2.nd, node1);
 		}
 	|	Statement
 		{
+
+		//printf("test for Statement\n");
 		//给左边非终结符赋值
 
 		struct node* cur;
@@ -846,13 +868,19 @@ CompState:	Begin StateList End
 AsignState:	Variable ':''=' Expr
 		{
 
+		//printf("Asignstate\n");
 		//给左边非终结符赋值
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
 		$$.nd = cur;
 		
 		//对于赋值语句生成四元式
-		GEN(":=", $4.place, 0, $1.NO);
+		if ($1.OFFSET == 0) {
+			GEN(":=", $4.place, 0, $1.NO);
+		}else{
+			GEN("[]=", $4.place, $1.NO, $1.OFFSET);
+		}
+		
 	
 		//初始化右值
 		struct node*node1;
@@ -866,7 +894,7 @@ AsignState:	Variable ':''=' Expr
 		add_son_node($$.nd, $1.nd);
 		add_brother_node($1.nd, node1);
 		add_brother_node(node1, $4.nd);
-
+		printf("ENDAsignstate\n");
 		}
 	;
 ISE:		IBT Statement Else
@@ -1414,19 +1442,24 @@ ExprList: ExprList ',' Expr
 
 			int k, d;
 			int T1 = NewTemp();
-			int T2 = NewTemp();
+			//int T2 = NewTemp();
 			k = $1.DIM + 1;
 
 			d = Access_d($1.NO, k);
-			printf("%d....\n", d);
+			//printf("%d....\n", d);
 			//生成四元式
-			GEN(":=",d, 0, T1);
-			GEN("*", $1.tmp_place, T1, T2);
-			GEN("+", $3.place, T2, T2);
+			char name[TABLE_MAX_IDENT_NAME_LEN];
+			_itoa(d, name,10);
+			//GEN(":=",Entry(name), 0, T1);
+			int d_place = Entry(name);
+			puts(name);
+			GEN("*", $1.tmp_place, d_place, T1);
+			GEN("+", $3.place, T1, T1);
 
 			//上传
 			$$.NO = $1.NO;
-			$$.tmp_place = T2;
+			//传递存放中间结果的VARPART
+			$$.tmp_place = T1;
 			$$.DIM = k;
 
 			//初始化右值

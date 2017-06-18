@@ -30,7 +30,8 @@ extern array_variable TypeList[TABLE_MAX_VAR_NUM];
 
 //输出符号表
 void OutputVarList(void);
-
+//生成类型表
+void OutputTypeList();
 int id_or_keyword(char *);
 
 //查找变量名在表中的位置
@@ -64,7 +65,8 @@ int Access_a(int no);
 //取得d
 int Access_d(int no, int k);
 
-
+//获取一个字符串的L 和U
+void Get_L_and_U(char *str, int *L, int *U);
 
 #endif
 
