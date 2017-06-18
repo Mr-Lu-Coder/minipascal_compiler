@@ -69,9 +69,11 @@ extern int yydebug;
     Of = 418,
     Array = 419,
     OneDimString = 420,
+    Goto = 421,
     LE = 500,
     GE = 501,
     NE = 502,
+    Asign = 503,
     ERRORCHAR = 600,
     UMINUS = 602
   };
@@ -101,6 +103,10 @@ union YYSTYPE
 		int CH; 
 		struct node *nd;
 	} ch_node;
+	struct {
+		char str[20];
+		struct node *nd;
+	} str_node;
 	//类型节点
 	struct {
 		//1 2 3 
@@ -175,7 +181,7 @@ union YYSTYPE
 	}OneDim_node;
 
 
-#line 179 "pascal_yacc.h" /* yacc.c:1909  */
+#line 185 "pascal_yacc.h" /* yacc.c:1909  */
 };
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1

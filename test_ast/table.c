@@ -11,13 +11,13 @@
 
 table_variable VarList[TABLE_MAX_VAR_NUM];//
 array_variable TypeList[TABLE_MAX_VAR_NUM];
-
+label_variable LabelList[TABLE_MAX_VAR_NUM];
 
 
 //符号表
 int VarCount = 0;
 int TypeCount = 0;
-
+int LabelCount = 0;
 
 int tmp_cnt = 0;
 static char KeyWord[][TABLE_MAX_IDENT_NAME_LEN] =
@@ -267,4 +267,47 @@ void Get_L_and_U(char *str, int *L, int *U)
 
 
 
+}
+
+/****************************************
+关于label的处理
+****************************************/
+int EnterLabel(char *Name)
+{
+	//这里先++是让符号表第0个位置不存放符号
+	LabelCount++;
+	if (LabelCount > TABLE_MAX_VAR_NUM) {
+		printf("There is no enough space!\n");
+	}
+	strncpy(LabelList[LabelCount].name, Name, sizeof(Name));
+	LabelList[LabelCount].ADDR = 0;
+
+	return LabelCount;
+}
+
+int LookUpLabel(char *Name)
+{
+	printf("\nname: %s\n", Name);
+	for (int i = 1; i <= LabelCount; i++) {
+		if (strcmp(LabelList[i].name, Name) == 0) {
+			return i;
+		}
+	}
+	//printf("name: %s\n", Name);
+	//printf("No Variable %s!\n", Name);
+	return 0;
+
+}
+
+
+void BackLabelPatch(int p, int t)
+{
+	int q = p;
+	//printf("%d %d %d", q, VarList[q].addr, t);
+	while (q) {
+		//注意此处不能颠倒
+		int tmp = q;
+		q = LabelList[q].ADDR;
+		LabelList[tmp].ADDR = t;
+	}
 }

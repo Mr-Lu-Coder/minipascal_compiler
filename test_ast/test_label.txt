@@ -1,0 +1,12 @@
+Program a;
+Var j,k:real;
+Begin
+    i:=1;
+i:=1;
+i:=1;
+i:=1;
+i:=1;
+i:=1;gg
+i:=1;
+i:=1;
+End.

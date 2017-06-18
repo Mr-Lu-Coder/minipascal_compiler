@@ -2,8 +2,10 @@
 #include <string.h>
 #include "ir.h"
 #include "table.h"
-
-int NXQ = 0;  /* used to indicate the number of next Quater*/
+/* used to indicate the number of next Quater
+从1开始，因为回填的时候是到0结束，不过感觉和这个没关系
+*/
+int NXQ = 0;  
 
 ir_quarter_expression QuaterList[MAX_IR_EXP_NUM];
 
@@ -79,7 +81,7 @@ int Merge(int p1, int p2)  //p1添到p2的后面
 void BackPatch(int p, int t)   //回填
 {
 	int q = p;
-
+	printf("%d %d", p, t);
 	while (q) {
 		int q1 = QuaterList[q].result;
 		QuaterList[q].result = t;

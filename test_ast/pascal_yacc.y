@@ -9,7 +9,7 @@
 #include "ir.h"
 #include "table.h"
 #include "pascal_lex.h"
-
+extern int line_number;
 int yyerror(char*);
 
 #define INT 0
@@ -38,6 +38,10 @@ int yyerror(char*);
 		int CH; 
 		struct node *nd;
 	} ch_node;
+	struct {
+		char str[20];
+		struct node *nd;
+	} str_node;
 	//类型节点
 	struct {
 		//1 2 3 
@@ -138,10 +142,12 @@ int yyerror(char*);
 %token	<str>	Of			418
 %token	<str>	Array		419
 %token	<str>	OneDimString	420
+%token	<str>	Goto	    421
 /*Define double_character terminates:   */
 %token			LE			500
 %token			GE			501
 %token			NE			502
+%token			Asign		503
 %token			ERRORCHAR	600
 
 %left 		Or
@@ -190,6 +196,8 @@ int yyerror(char*);
 
 %type <TypeFirst_node>TypeFirst
 %type <OneDim_node>OneDim
+%type <str_node>Label
+%type <str_node>LabelDef
 
 
 %%
@@ -241,6 +249,31 @@ SubProg:	VarDef CompState
 		//建立关系
 		add_son_node($$,$1.nd);
 		add_brother_node($1.nd,$2.nd);    	
+		}
+	;
+CompState:	Begin StateList End
+		{
+		printf("test for begin and end\n");
+		//给左边非终结符赋值
+		struct node* cur;
+		complete_init_node(&cur, "NULL");
+		$$.nd = cur;
+		
+		$$.CH = $2.CH;
+	
+		//初始化右值
+		struct node*node1,*node2;
+		complete_init_node(&node1, "Begin");
+		complete_init_node(&node2, "End");
+
+		
+		set_node_val_str($2.nd, "StateList");
+		
+		//关系
+		add_son_node($$.nd, node1);
+		add_brother_node(node1, $2.nd);
+		add_brother_node($2.nd, node2);
+
 		}
 	;
 VarDef:		Var VarDefList ';'
@@ -553,7 +586,7 @@ VarList:	VarList','Variable
 		}
 	;
 //程序主体语句从这开始
-StateList:	S_L Statement ';'
+StateList:	S_L Statement
 		{
 		//printf("test for StateList\n");
 		//给左边非终结符赋值
@@ -562,16 +595,18 @@ StateList:	S_L Statement ';'
 		$$.nd = cur;
 		//此处传递的是$2链的出口
 		$$.CH = $2.CH;
-	
+		
 		//初始化右值
+		//printf("end for State_List\n");
 		set_node_val_str($1.nd, "S_L");
 		set_node_val_str($2.nd, "Statement");
-		struct node *node1;
-		complete_init_node(&node1, ";");
+		//struct node *node1;
+		//complete_init_node(&node1, ";");
 		//关系
 		add_son_node($$.nd, $1.nd);
 		add_brother_node($1.nd, $2.nd);
-		add_brother_node($2.nd, node1);
+		//add_brother_node($2.nd, node1);
+		
 		}
 	|	Statement
 		{
@@ -585,9 +620,14 @@ StateList:	S_L Statement ';'
 		//传递
 		$$.CH = $1.CH;
 
+		//初始化右值
+		//struct node *node1;
+		//complete_init_node(&node1, ";");
+
 		set_node_val_str($1.nd, "Statement");
 		//关系
 		add_son_node($$.nd, $1.nd);
+		//add_brother_node($1.nd, node1);
 		}
 	;
 S_L:		StateList ';'
@@ -601,17 +641,19 @@ S_L:		StateList ';'
 		///此时分析器刚分析完分号，控制流程将继续顺序执行
 		//所以下一个四元式的序号回填StateList的出口链
 		//$$.CH = $1.CH;
+		//printf("Back\n");
 		BackPatch($1.CH, NXQ);
+		
 		//初始化右值
 		struct node *node1;
 		complete_init_node(&node1, ";");
-
 		set_node_val_str($1.nd, "StateList");
 		
 		
 		//关系
 		add_son_node($$.nd, $1.nd);
 		add_brother_node($1.nd, node1);
+		
 		}
 	;
 Statement:	AsignState
@@ -730,6 +772,7 @@ Statement:	AsignState
 		}
 	|	CompState
 	    {
+		//printf("compstate in statement\n");
 		//给左边非终结符赋值
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
@@ -775,13 +818,137 @@ Statement:	AsignState
 		add_brother_node(node1, $3.nd);
 
 	    }
+	|LabelDef Statement
+	{
+		//给左边非终结符赋值
+		struct node* cur;
+		complete_init_node(&cur, "NULL");
+		$$.nd = cur;
+		//链
+		$$.CH = $2.CH;
+		
+		set_node_val_str($1.nd, "LabelDef");
+		set_node_val_str($2.nd, "Statement");
+		
+		//关系
+		add_son_node($$.nd, $1.nd);
+		add_brother_node($1.nd, $2.nd);
+	
+	}
+	| Goto Label
+	{
+		//给左边非终结符赋值
+		//printf("goto label****\n");
+		struct node* cur;
+		complete_init_node(&cur, "NULL");
+		$$.nd = cur;
+		$$.CH = 0;
+		//内部逻辑
+		puts($2.str);
+		int i = LookUpLabel($2.str);
+		//printf("find result i:  %d\n", i);
+		//该标号是首次出现
+		if (i == 0) {
+			i = EnterLabel($2.str);
+			LabelList[i].DEF = 0;
+			LabelList[i].ADDR = NXQ;
+
+			GEN("j", 0, 0, 0);
+		}else{/*该标号已经出现过*/
+			if (LabelList[i].DEF) //已定义可以直接使用地址
+			{
+				GEN("j", 0, 0, LabelList[i].ADDR);
+				//printf("get GEN %d ", LabelList[i].ADDR);
+			} 
+				
+			else {
+				//未定义，需要拉链
+				int n = NXQ;
+				GEN("j", 0, 0, LabelList[i].ADDR);
+				LabelList[i].ADDR = n;	
+			}
+		}
+
+		struct node* node1;
+		complete_init_node(&node1, "Goto");
+
+		set_node_val_str($2.nd, "Label");
+		//关系
+		add_son_node($$.nd, node1);
+		add_brother_node(node1, $2.nd);
+	}
+
 	|
-	{    //需要这个为空也是 有意义的！！！！！！！
+	{   
+		//给左边非终结符赋值
+		//printf("goto label****\n");
+		struct node* cur;
+		complete_init_node(&cur, "NULL");
+		$$.nd = cur;
+		$$.CH = 0;	
+	 //需要这个为空也是 有意义的！！！！！！！
 	//   StateList:	S_L Statement
 	//因为存在上述文法，所以Statement可以为空
 	}
 	;
-ForLoop1: For Iden ':''=' Expr
+LabelDef : Label ':'
+	{
+		//给左边非终结符赋值
+		struct node* cur;
+		complete_init_node(&cur, "NULL");
+		$$.nd = cur;
+		//printf(":::::%s", $1.str);
+		int i = LookUpLabel($1.str);
+		//printf("find result %d", i);
+		if (i == 0) {
+			i = EnterLabel($1.str);
+			LabelList[i].DEF = 1;
+			LabelList[i].ADDR = NXQ;
+		}else if (LabelList[i].DEF){
+			//label 重复定义
+			yyerror("Label redefinition!");
+		}else{
+			LabelList[i].DEF = 1;
+			BackLabelPatch(LabelList[i].ADDR, NXQ);
+			LabelList[i].ADDR = NXQ;
+		}
+
+		struct node* node1;
+		complete_init_node(&node1, "Goto");
+
+		set_node_val_str($1.nd, "Label");
+		//关系
+		add_son_node($$.nd, $1.nd);
+		add_brother_node($1.nd, node1);
+	
+	}
+Label : IntNo
+	{
+		//给左边非终结符赋值
+		struct node* cur;
+		complete_init_node(&cur, "NULL");
+		$$.nd = cur;
+
+		strncpy($$.str, $1, sizeof($1));
+		struct node* node1;
+		complete_init_node(&node1, $1);
+		//关系
+		add_son_node($$.nd, node1);
+	}
+	|  Iden
+	{
+		//给左边非终结符赋值
+		struct node* cur;
+		complete_init_node(&cur, "NULL");
+		$$.nd = cur;
+
+		strncpy($$.str, $1, sizeof($1));
+		struct node* node1;
+		complete_init_node(&node1, $1);
+		//关系
+		add_son_node($$.nd, node1);
+	};
+ForLoop1: For Iden Asign Expr
 {
 		//给左边非终结符赋值
 		struct node* cur;
@@ -790,7 +957,7 @@ ForLoop1: For Iden ':''=' Expr
 		
 		int i = Entry($2);
 		//此时生成赋值四元式
-		GEN(":=", $5.place, 0, i);
+		GEN(":=", $4.place, 0, i);
 		//将控制变量所在的位置传递
 		$$.place = i;
 
@@ -799,14 +966,14 @@ ForLoop1: For Iden ':''=' Expr
 		complete_init_node(&node1, "For");
 		complete_init_node(&node2, $2);
 		complete_init_node(&node3, ":=");
-		set_node_val_str($5.nd, "Expr");
+		set_node_val_str($4.nd, "Expr");
 		
 		
 		//关系
 		add_son_node($$.nd, node1);
 		add_brother_node(node1, node2);
 		add_brother_node(node2, node3);
-		add_brother_node(node3, $5.nd);
+		add_brother_node(node3, $4.nd);
 };
 ForLoop2: ForLoop1 To Expr
 {
@@ -840,32 +1007,8 @@ ForLoop2: ForLoop1 To Expr
 		add_brother_node(node1, $3.nd);
 };
 
-CompState:	Begin StateList End
-		{
-		//printf("test for begin and end\n");
-		//给左边非终结符赋值
-		struct node* cur;
-		complete_init_node(&cur, "NULL");
-		$$.nd = cur;
-		
-		$$.CH = $2.CH;
-	
-		//初始化右值
-		struct node*node1,*node2;
-		complete_init_node(&node1, "Begin");
-		complete_init_node(&node2, "End");
 
-		
-		set_node_val_str($2.nd, "StateList");
-		
-		//关系
-		add_son_node($$.nd, node1);
-		add_brother_node(node1, $2.nd);
-		add_brother_node($2.nd, node2);
-
-		}
-	;
-AsignState:	Variable ':''=' Expr
+AsignState:	Variable Asign Expr
 		{
 
 		//printf("Asignstate\n");
@@ -876,9 +1019,9 @@ AsignState:	Variable ':''=' Expr
 		
 		//对于赋值语句生成四元式
 		if ($1.OFFSET == 0) {
-			GEN(":=", $4.place, 0, $1.NO);
+			GEN(":=", $3.place, 0, $1.NO);
 		}else{
-			GEN("[]=", $4.place, $1.NO, $1.OFFSET);
+			GEN("[]=", $3.place, $1.NO, $1.OFFSET);
 		}
 		
 	
@@ -888,13 +1031,12 @@ AsignState:	Variable ':''=' Expr
 
 		
 		set_node_val_str($1.nd, "Variable");
-		set_node_val_str($4.nd, "Expr");
+		set_node_val_str($3.nd, "Expr");
 		
 		//关系
 		add_son_node($$.nd, $1.nd);
 		add_brother_node($1.nd, node1);
-		add_brother_node(node1, $4.nd);
-		printf("ENDAsignstate\n");
+		add_brother_node(node1, $3.nd);
 		}
 	;
 ISE:		IBT Statement Else
@@ -1278,8 +1420,15 @@ BoolExpr:	Expr RelationOp Expr
 		GEN($2._Rop ,$1.place, $3.place,0);
 		GEN("j",0,0,0);
 
-		struct node*node1;
-		complete_init_node(&node1, $2._Rop);
+		//struct node*node1;
+		//complete_init_node(&node1, $2._Rop);
+
+		//初始化右值
+		set_node_val_str($1.nd, "Expr");
+		set_node_val_str($2.nd, $2._Rop);
+		set_node_val_str($3.nd, "Expr");
+
+
 		//关系
 		add_son_node($$.nd, $1.nd);
 		add_brother_node($1.nd, $2.nd);
@@ -1384,6 +1533,26 @@ BoolExpr:	Expr RelationOp Expr
 		add_son_node($$.nd, node1);
 		
 		}
+		| IntNo
+		{
+		//给左边非终结符赋值
+		struct node* cur;
+		complete_init_node(&cur, "NULL");
+		$$.nd = cur;
+		//传递 真和假出口
+		$$.TC = NXQ;
+		$$.FC = NXQ+1;
+		
+		GEN("jnz",Entry($1),0,0);
+		GEN("j",0,0,0);
+
+		struct node*node1;
+		complete_init_node(&node1, $1);
+		//关系
+		add_son_node($$.nd, node1);
+		
+		}
+
 	;
 BoolExpr_or: BoolExpr Or
 {
@@ -1563,6 +1732,7 @@ Const:		IntNo
 		}
 	|	RealNo
 		{
+		//printf("")
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
 		$$.nd = cur;
@@ -1759,6 +1929,6 @@ RSU: RE Statement Until
 
 int yyerror(char *errstr)
 {
-	printf(" Reason:%s\n", errstr);
+	printf("Line: %d Reason:%s %d\n", line_number, errstr);
 	return 0;
 }

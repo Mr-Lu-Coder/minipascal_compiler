@@ -185,10 +185,14 @@ void complete_init_node(struct node **cur, char *Name)
 //»­³ö³éÏóÓï·¨Ê÷
 void draw_ast(struct node *cur, int level)
 {
-
-	for (int i = 0; i < level; i++) {
-		printf("\t");
+	printf("%4d", level);
+	int i;
+	for (i = 0; i < level; i++) {
+		printf("|\t");
 	}
+	
+	//if (i < level)
+		
 	printf("%s \n", cur->val.str);
 	if (NULL != cur->son) {
 		draw_ast(cur->son, level + 1);

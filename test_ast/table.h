@@ -12,7 +12,7 @@ typedef struct table_variable__ {
 	int addr; // 地址
 	int array_no; //如果是array类型的，那么array_no为array_variable的下标
 } table_variable;
-
+//数组类型表
 typedef struct array_variable__ {
 	int n;
 	int C;
@@ -21,11 +21,18 @@ typedef struct array_variable__ {
 	int U[TABLE_MAX_ARRAY_NUM];
 	int D[TABLE_MAX_ARRAY_NUM];
 }array_variable;
-
+//label表
+typedef struct label_variable__ {
+	int DEF;
+	int ADDR;
+	char name[TABLE_MAX_IDENT_NAME_LEN];
+}label_variable;
 
 extern table_variable VarList[TABLE_MAX_VAR_NUM];
 
 extern array_variable TypeList[TABLE_MAX_VAR_NUM];
+
+extern label_variable LabelList[TABLE_MAX_VAR_NUM];
 
 
 //输出符号表
@@ -67,6 +74,14 @@ int Access_d(int no, int k);
 
 //获取一个字符串的L 和U
 void Get_L_and_U(char *str, int *L, int *U);
+
+//放到表中
+int EnterLabel(char *Name);
+//查找表中有没有
+int LookUpLabel(char *Name);
+
+//回填Label拉链
+void BackLabelPatch(int p, int t);
 
 #endif
 

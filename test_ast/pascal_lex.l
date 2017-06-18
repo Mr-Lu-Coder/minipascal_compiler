@@ -5,7 +5,7 @@
 
 #include "pascal_yacc.h"
 #include "table.h"
-
+int line_number = 1;
 %}   
 /************************************
 *	∫Í∂®“Â	*
@@ -46,10 +46,11 @@ white		[\t\n\040]
 [Uu][Nn][Tt][Ii][Ll]					{ECHO;return Until;}
 [Oo][Ff]								{ECHO;return Of;}
 [Aa][Rr][Rr][Aa][Yy]					{ECHO;return Array;}
+[Gg][Oo][Tt][Oo]						{ECHO;return Goto;}
 ({d}+(\.{d}*)?[Ee]([+-])?{d}+)|({d}*\.{d}+[Ee]([+-])?{d}+)	{ECHO;strcpy(yylval.str,yytext);return RealNo;}
-{d}+\.{d}*|{d}*\.{d}+										{ECHO;strcpy(yylval.str,yytext);return RealNo;}
+{d}+\.{d}*|{d}*\.{d}+										{ECHO;puts(yytext);strcpy(yylval.str,yytext);return RealNo;}
 {d}+														{ECHO;strcpy(yylval.str,yytext);return IntNo;}
-{d}+[" "\t]*\.\.[" "\t]*{d}+                                  {ECHO;strcpy(yylval.str,yytext);return OneDimString;}
+{d}+[" "\t]*\.\.[" "\t]*{d}+                                {ECHO;strcpy(yylval.str,yytext);return OneDimString;}
 
 "("			{ECHO;return '(';}
 ")"			{ECHO;return ')';}
@@ -61,6 +62,7 @@ white		[\t\n\040]
 "<="		{ECHO;return LE;}
 ">="		{ECHO;return GE;}
 "<>"		{ECHO;return NE;}
+":="		{ECHO;return Asign;}
 ":"			{ECHO;return ':';}
 ";"			{ECHO;return ';';}
 "\."		{ECHO;return '.';}
@@ -70,6 +72,7 @@ white		[\t\n\040]
 "/"			{ECHO;return '/';}
 "%"			{ECHO;return '%';}
 ","			{ECHO;return ',';}
+"\n"            {ECHO;++line_number;}
 {letter}{alnum}*	{ ECHO;strcpy(yylval.str,yytext); return Iden;}
 {white}+			{ECHO;}
 .					{printf("Invalid char %s\n",yytext);return ERRORCHAR; }

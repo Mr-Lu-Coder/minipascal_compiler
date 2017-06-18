@@ -1,0 +1,9 @@
+Program a;
+Var i:integer;
+Begin
+   i:=1;
+   While 1 Do
+   Begin
+      i:=10;
+   End;
+End.
