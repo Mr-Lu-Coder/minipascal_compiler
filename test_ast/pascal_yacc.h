@@ -72,6 +72,8 @@ extern int yydebug;
     OneDimString = 420,
     Goto = 421,
     Case = 422,
+    Break = 423,
+    Continue = 424,
     LE = 500,
     GE = 501,
     NE = 502,
@@ -86,7 +88,7 @@ extern int yydebug;
 typedef union YYSTYPE YYSTYPE;
 union YYSTYPE
 {
-#line 26 "pascal_yacc.y" /* yacc.c:1909  */
+#line 40 "pascal_yacc.y" /* yacc.c:1909  */
 
 	int Iv;                //类型                         
 	int CH;                //CH表示链             
@@ -152,12 +154,16 @@ union YYSTYPE
 	//for循环节点
 	struct {
 		int loop, place, CH; 
+		int Break_CH, Continue_CH;
+		int type;
 		struct node *nd;
 	} ForLoop_node;
 	//变量节点
 	struct {
+	    int Array_type; //传递数组是real类型还是Int类型
 		int NO;
 		int OFFSET; //
+		char str[20];
 		struct node* nd;
 	}Variable_node;
 	//ExprList
@@ -191,7 +197,7 @@ union YYSTYPE
 	}case_node;
 
 
-#line 195 "pascal_yacc.h" /* yacc.c:1909  */
+#line 201 "pascal_yacc.h" /* yacc.c:1909  */
 };
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1

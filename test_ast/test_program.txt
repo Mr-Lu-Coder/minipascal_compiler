@@ -1,6 +1,6 @@
 Program a;
 Var j,k:real;
 Begin
-    
-    k:=3.4;
+    {Ç¿ÖÆ×ª»»}
+    j:= j+1;
 End.

@@ -4,8 +4,9 @@
 #include <string.h>
 
 #include "pascal_yacc.h"
+#include "util.h"
 #include "table.h"
-int line_number = 1;
+extern int yyerror(char *errstr);
 %}   
 /************************************
 *	∫Í∂®“Â	*
@@ -26,7 +27,7 @@ white		[\t\n\040]
 
 
 
-[Bb][Ee][Gg][Ii][Nn]					{ECHO;return Begin;}
+[Bb][Ee][Gg][Ii][Nn]					{ECHO;VarFlag = 1; return Begin;}
 [Ee][Nn][Dd]							{ECHO;return End;}
 [Pp][Rr][Oo][Gg][Rr][Aa][Mm]			{ECHO;return Program;}
 [Vv][Aa][Rr]							{ECHO;return Var;}
@@ -48,9 +49,11 @@ white		[\t\n\040]
 [Aa][Rr][Rr][Aa][Yy]					{ECHO;return Array;}
 [Gg][Oo][Tt][Oo]						{ECHO;return Goto;}
 [Cc][Aa][Ss][Ee]						{ECHO;return Case;}
+[Bb][Rr][Ee][Aa][Kk]					{ECHO;return Break;}
+[Cc][Oo][Nn][Tt][Ii][Nn][Uu][Ee]		{ECHO;return Continue;}
 \'.\'	 													{ECHO;strcpy(yylval.str,yytext);return CHAR;}
 ({d}+(\.{d}*)?[Ee]([+-])?{d}+)|({d}*\.{d}+[Ee]([+-])?{d}+)	{ECHO;strcpy(yylval.str,yytext);return RealNo;}
-{d}+\.{d}*|{d}*\.{d}+										{ECHO;puts(yytext);strcpy(yylval.str,yytext);return RealNo;}
+{d}+\.{d}*|{d}*\.{d}+										{ECHO;strcpy(yylval.str,yytext);return RealNo;}
 {d}+														{ECHO;strcpy(yylval.str,yytext);return IntNo;}
 {d}+[" "\t]*\.\.[" "\t]*{d}+                                {ECHO;strcpy(yylval.str,yytext);return OneDimString;}
 
@@ -77,7 +80,8 @@ white		[\t\n\040]
 "\n"            {ECHO;++line_number;}
 {letter}{alnum}*	{ ECHO;strcpy(yylval.str,yytext); return Iden;}
 {white}+			{ECHO;}
-.					{printf("Invalid char %s\n",yytext);return ERRORCHAR; }
+{d}+{letter}+[alnum]*   {error_number = ILLEGALIDEN ;yyerror(yytext); return ERRORCHAR; }
+.					{error_number = UNRE_COG_SYMBOL; yyerror(yytext); return ERRORCHAR; }
 
 %%
 

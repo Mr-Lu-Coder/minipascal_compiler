@@ -10,16 +10,30 @@
 #include "table.h"
 #include "pascal_lex.h"
 #include "queue.h"
-
+#include "stack.h"  
+#include "util.h"
 extern int line_number;
+extern int error_number;
 int yyerror(char*);
+
+
 
 #define INT 0
 #define REAL 1
 #define ARRAY 2
+
+#define WHILE 1
+#define FOR 2
+#define DO 3
+#define REPEAT 4
+
+
+
+
+
 LinkQueue case_queue;
 QElemType item;
-
+LoopStack_ *stack_item, stacknode;
 %}
 %start    ProgDef
 %union 
@@ -88,12 +102,16 @@ QElemType item;
 	//for循环节点
 	struct {
 		int loop, place, CH; 
+		int Break_CH, Continue_CH;
+		int type;
 		struct node *nd;
 	} ForLoop_node;
 	//变量节点
 	struct {
+	    int Array_type; //传递数组是real类型还是Int类型
 		int NO;
 		int OFFSET; //
+		char str[20];
 		struct node* nd;
 	}Variable_node;
 	//ExprList
@@ -156,6 +174,8 @@ QElemType item;
 %token	<str>	OneDimString	420
 %token	<str>	Goto	    421
 %token	<str>	Case	    422
+%token	<str>	Break	    423
+%token	<str>	Continue	424
 /*Define double_character terminates:   */
 %token			LE			500
 %token			GE			501
@@ -186,17 +206,20 @@ QElemType item;
 %type <ch_node> AsignState
 %type <ch_node> ISE
 %type <ch_node> IBT
-%type <wbd_node> WBD
+
 
 %type <rop_node> RelationOp
 %type <exp_node> Expr
-%type <ch_node> Wh
+
 %type <Variable_node> Variable 
 %type <ExprList_node> ExprList 
 %type <exp_node> Const 
 %type <Bexp_node>BoolExpr
 %type <Bexp_node>BoolExpr_and 
 %type <Bexp_node>BoolExpr_or 
+%type <ForLoop_node> Wh
+%type <ForLoop_node> WBD
+
 %type <ForLoop_node>ForLoop1
 %type <ForLoop_node>ForLoop2 
 
@@ -272,7 +295,7 @@ SubProg:	VarDef CompState
 	;
 CompState:	Begin StateList End
 		{
-		printf("test for begin and end\n");
+		//printf("test for begin and end\n");
 		//给左边非终结符赋值
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
@@ -549,7 +572,7 @@ OneDim : IntNo '.''.' IntNo
 
 
 	}| OneDimString{
-		printf("***************\n");
+		//printf("***************\n");
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
 		$$.nd = cur;
@@ -732,13 +755,22 @@ Statement:	AsignState
 		complete_init_node(&cur, "NULL");
 		$$.nd = cur;
 		
-		BackPatch($2.CH, $1.QUAD);
+		BackPatch($2.CH, $1.loop);
 		//此时应无条件返回到循环初始的位置
-		GEN("j", 0, 0, $1.QUAD);
+		GEN("j", 0, 0, $1.loop);
 		//此时布尔表达式的假出口传递
 		$$.CH = $1.CH;
 
-		set_node_val_str($1.nd, "IBT");
+		//此时栈顶的break_ch出现
+		/*处理break， continue*/
+		top(&stack_item);  //lushangqi
+		//printf("stack_item->breakch %d\n", stack_item->break_ch);
+		BackPatch(stack_item->break_ch, NXQ);
+		//同时弹出栈顶元素
+		pop();
+
+
+		set_node_val_str($1.nd, "WBD");
 		set_node_val_str($2.nd, "Statement");
 		
 		//关系
@@ -758,6 +790,13 @@ Statement:	AsignState
 		BackPatch($2.TC, $1.loop);
 		//将bool表达式的假出口上传
 		$$.CH = $2.FC;
+
+		//此时栈顶的break_ch出现
+		/*处理break， continue*/
+		top(&stack_item);  //lushangqi
+		BackPatch(stack_item->break_ch, NXQ);
+		//同时弹出栈顶元素
+		pop();
 
 
 		set_node_val_str($1.nd, "DSW");
@@ -781,7 +820,15 @@ Statement:	AsignState
 		//将bool表达式的假真出口上传
 		$$.CH = $2.TC;
 
-		set_node_val_str($1.nd, "DSW");
+		//此时栈顶的break_ch出现
+		/*处理break， continue*/
+		top(&stack_item);  //lushangqi
+		BackPatch(stack_item->break_ch, NXQ);
+		//同时弹出栈顶元素
+		pop();
+
+
+		set_node_val_str($1.nd, "RSU");
 		set_node_val_str($2.nd, "BoolExpr");
 		
 		//关系
@@ -816,6 +863,13 @@ Statement:	AsignState
 		//对statement进行回填
 		BackPatch($3.CH, NXQ);
 		//控制变量自增的四元式
+
+
+		//此时栈顶的continue_ch出现
+		/*处理break， continue*/
+		top(&stack_item);  //lushangqi
+		BackPatch(stack_item->continue_ch, NXQ);
+
 		GEN("+", $1.place, Entry("1"), $1.place);
 
 		//返回循环起始节点
@@ -824,6 +878,14 @@ Statement:	AsignState
 		//传递出口
 		$$.CH = $1.CH;
 		
+		//此时栈顶的break_ch出现
+		/*处理break， continue*/
+		top(&stack_item);  //lushangqi
+		BackPatch(stack_item->break_ch, NXQ);
+		//同时弹出栈顶元素
+		pop();
+
+
 		struct node* node1;
 		complete_init_node(&node1, "Do");
 
@@ -901,7 +963,6 @@ Statement:	AsignState
 	
 
 	//给左边非终结符赋值
-	printf("****casewithesle statement\n");
 	struct node* cur;
 	complete_init_node(&cur, "NULL");
 	$$.nd = cur;
@@ -927,20 +988,14 @@ Statement:	AsignState
 	GEN("j", 0, 0, LabelList[$1.next_id].ADDR);
 	LabelList[$1.next_id].ADDR = n;	
 
-	printf("****end1 casewithesle statement\n");
 	
 	//首先对check_id进行回填
 	BackPatch(LabelList[$1.check_id].ADDR, NXQ);
-	printf("****end1.5 casewithesle statement\n");
 	//此时要开始生成if else 的四元式
 	for (int i = 1; i < $1.L_cnt; i++) {
 		DeQueue(&case_queue, &item);
-		printf("****end1.6 casewithesle statement\n");
-		printf("%d %d\n", item.arg2, item.result);
 		GEN("j=", $1.T, item.arg2, LabelList[item.result].ADDR);
-		printf("****end1.7 casewithesle statement\n");
 	}
-	printf("****end2 casewithesle statement\n");
 	DeQueue(&case_queue, &item);
 	GEN("j", 0, 0, LabelList[item.result].ADDR);
 	myDestroyQueue(&case_queue);
@@ -948,11 +1003,98 @@ Statement:	AsignState
 	//对next进行回填
 	BackPatch(LabelList[$1.next_id].ADDR, NXQ);
 
-	printf("****end3 casewithesle statement\n");
 
 };
-	|
-	{   
+	|Break
+	{
+		//printf("breakGGG");
+		//给左边非终结符赋值
+		struct node* cur;
+		complete_init_node(&cur, "NULL");
+		$$.nd = cur;
+		$$.CH = 0;
+
+		struct node* node1;
+		complete_init_node(&node1, "Break");
+
+		add_son_node($$.nd, node1);
+
+		//栈为空表明有错
+		if (is_empty()) {
+			//lushangqi!!!!!
+		}
+		top(&stack_item);
+		//四种循环都是直接跳出，且跳出的NXQ都是循环的下边
+		int n = NXQ;
+		if (stack_item == NULL) {
+			puts("NULL!!!");
+		}
+		//printf("breck_ch %d", stack_item->break_ch);
+		
+		GEN("j", 0, 0, 0);
+		stack_item->break_ch = Merge(stack_item->break_ch, n);
+		//printf("breck_ch %d", stack_item->break_ch);
+		//printf("GG:%d", stack_item->break_ch);
+		top(&stack_item);
+		//printf("GG:%d", stack_item->break_ch);
+		//printf("end4GG");
+		
+		
+	}
+	|Continue{
+		//printf("continue statement");
+		//给左边非终结符赋值
+		struct node* cur;
+		complete_init_node(&cur, "NULL");
+		$$.nd = cur;
+		$$.CH = 0;
+
+		struct node* node1;
+		complete_init_node(&node1, "Continue");
+
+		add_son_node($$.nd, node1);
+		//栈为空表明有错
+		if (is_empty()) {
+			//lushangqi!!!!!
+		}
+		top(&stack_item);
+		switch(stack_item->type) {
+			case WHILE:{
+				GEN("j", 0, 0, stack_item->loop);
+				break;
+			}
+			case FOR:{
+				//此时do的continue中loop还没有确定,需要拉链，因为变量需要自增
+				int n = NXQ;
+				GEN("j", 0, 0, 0);
+				stack_item->continue_ch = Merge(stack_item->continue_ch, n);
+				break;
+			}
+			case DO:{
+			    //此时do的continue中loop还没有确定,需要拉链
+				int n = NXQ;
+				GEN("j", 0, 0, 0);
+				stack_item->continue_ch = Merge(stack_item->continue_ch, n);
+				break;
+			}
+			case REPEAT:{
+				 //此时do的continue中loop还没有确定,需要拉链
+				int n = NXQ;
+				GEN("j", 0, 0, 0);
+				stack_item->continue_ch = Merge(stack_item->continue_ch, n);
+				break;
+			}
+			default:{
+				//lushangqi
+				break;
+			}
+		}
+		
+
+	}
+
+
+	|{   
 		//给左边非终结符赋值
 		//printf("goto label****\n");
 		struct node* cur;
@@ -1059,6 +1201,15 @@ ForLoop2: ForLoop1 To Expr
 		//传递循环返回点信息，loop指向循环体的第一条四元式
 		$$.loop = NXQ;
 
+		/*处理break continne */
+		stacknode.loop = $$.loop;
+		stacknode.type = FOR;
+		stacknode.break_ch = 0;
+		stacknode.continue_ch = 0;
+		push(&stacknode);  //lushangqi   
+		
+		
+		   
 		//此时生成赋值四元式
 		GEN("j<", $1.place, $3.place, p+2);
 		//将控制变量所在的位置传递
@@ -1114,7 +1265,7 @@ AsignState:	Variable Asign Expr
 	;
 ISE:		IBT Statement Else
 		{
-
+		//printf("ISE begin");
 		//给左边非终结符赋值
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
@@ -1175,7 +1326,15 @@ WBD: Wh BoolExpr Do
 		//假出口还不确定
 		$$.CH = $2.FC;
 		//传递起始地址
-		$$.QUAD = $1.CH;
+		$$.loop = $1.CH;
+
+		/*处理break continne */
+		stacknode.loop = $$.loop;
+		stacknode.type = WHILE;
+		stacknode.break_ch = 0;
+		stacknode.continue_ch = 0;
+		push(&stacknode);  //lushangqi   
+
 
 		set_node_val_str($1.nd, "Wh");
 		set_node_val_str($2.nd, "BoolExpr");
@@ -1210,7 +1369,7 @@ Expr:		Expr'+'Expr
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
 		$$.nd = cur;
-		
+		//printf("Expr+expr");
 		int T = NewTemp();
 		//对于算数操作生成四元式,如果有一个是real就要把int型进行强制转换
 		if ($1.type == INT && $3.type == INT)
@@ -1441,6 +1600,7 @@ Expr:		Expr'+'Expr
 		}
 	|	Variable
 		{
+			//printf("Variable");
 		//给左边非终结符赋值
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
@@ -1448,16 +1608,17 @@ Expr:		Expr'+'Expr
 		//将变量在符号表中的类型和位置给表达式
 		// !!!!!!!!!!!!!!!!!!!!!!!!!
 		//!!!!!!!!!!!!!!!!!!!!!!!!!!有问题 lushangqi
-		//$$.type = INT;
-
+		
 		if (!$1.OFFSET) {
 			$$.place = $1.NO;
+			$$.type = VarList[$1.NO].type;
 			set_node_val_str($1.nd, "Variable");
 		}
 		else {
 			int T = NewTemp();
 			GEN("=[]", $1.NO, $1.OFFSET, T);
 			$$.place = T;
+			$$.type = $1.Array_type;
 			set_node_val_str($1.nd, "VariaArray");
 		}
 
@@ -1472,8 +1633,8 @@ Expr:		Expr'+'Expr
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
 		$$.nd = cur;
-
-		
+		//lushangqi   上传type
+		$$.type = $1.type;
 
 		set_node_val_str($1.nd, "Const");
 		//关系
@@ -1487,6 +1648,7 @@ Expr:		Expr'+'Expr
 
 BoolExpr:	Expr RelationOp Expr
 		{
+			//printf("Bool op Bool\n");
 		//给左边非终结符赋值
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
@@ -1592,43 +1754,43 @@ BoolExpr:	Expr RelationOp Expr
 		add_brother_node(node1, $2.nd);
 		add_brother_node($2.nd, node2);
 		}
-		|   Iden
+		| Iden
 		{
-		//给左边非终结符赋值
-		struct node* cur;
-		complete_init_node(&cur, "NULL");
-		$$.nd = cur;
-		//传递 真和假出口
-		$$.TC = NXQ;
-		$$.FC = NXQ+1;
-		
-		GEN("jnz",Entry($1),0,0);
-		GEN("j",0,0,0);
+			//给左边非终结符赋值
+			struct node* cur;
+			complete_init_node(&cur, "NULL");
+			$$.nd = cur;
+			//传递 真和假出口
+			$$.TC = NXQ;
+			$$.FC = NXQ + 1;
 
-		struct node*node1;
-		complete_init_node(&node1, $1);
-		//关系
-		add_son_node($$.nd, node1);
-		
+			GEN("jnz", Entry($1), 0, 0);
+			GEN("j", 0, 0, 0);
+
+			struct node*node1;
+			complete_init_node(&node1, $1);
+			//关系
+			add_son_node($$.nd, node1);
+
 		}
 		| IntNo
 		{
-		//给左边非终结符赋值
-		struct node* cur;
-		complete_init_node(&cur, "NULL");
-		$$.nd = cur;
-		//传递 真和假出口
-		$$.TC = NXQ;
-		$$.FC = NXQ+1;
-		
-		GEN("jnz",Entry($1),0,0);
-		GEN("j",0,0,0);
+			//给左边非终结符赋值
+			struct node* cur;
+			complete_init_node(&cur, "NULL");
+			$$.nd = cur;
+			//传递 真和假出口
+			$$.TC = NXQ;
+			$$.FC = NXQ + 1;
 
-		struct node*node1;
-		complete_init_node(&node1, $1);
-		//关系
-		add_son_node($$.nd, node1);
-		
+			GEN("jnz", Entry($1), 0, 0);
+			GEN("j", 0, 0, 0);
+
+			struct node*node1;
+			complete_init_node(&node1, $1);
+			//关系
+			add_son_node($$.nd, node1);
+
 		}
 
 	;
@@ -1688,7 +1850,6 @@ CaseWithElse: InCase Else
 {
 	
 	//给左边非终结符赋值
-	printf("test casewithelse****\n");
 	struct node* cur;
 	complete_init_node(&cur, "NULL");
 	$$.nd = cur;
@@ -1760,7 +1921,7 @@ InCase : CaseWithConst Statement  ';'
 
 CaseWithConst : CaseStart case_const ':'
 {
-	printf("test CaseWithconst");
+	//printf("test CaseWithconst");
 
 	//给左边非终结符赋值
 	struct node* cur;
@@ -1789,7 +1950,6 @@ CaseWithConst : CaseStart case_const ':'
 	item.arg2 = Entry($2.str);
 	item.result = L_id;
 	EnQueue(&case_queue, item);
-	printf("end3 test CaseWithconst");
 
 	$$.check_id = $1.check_id;
 	$$.next_id = $1.next_id;
@@ -1843,7 +2003,7 @@ CaseWithConst : CaseStart case_const ':'
 }
 CaseStart : Case Expr Of
 {
-	printf("test Case start");
+	//printf("test Case start");
 	//给左边非终结符赋值
 	struct node* cur;
 	complete_init_node(&cur, "NULL");
@@ -1923,7 +2083,7 @@ ExprList: ExprList ',' Expr
 			_itoa(d, name,10);
 			//GEN(":=",Entry(name), 0, T1);
 			int d_place = Entry(name);
-			puts(name);
+			//puts(name);
 			GEN("*", $1.tmp_place, d_place, T1);
 			GEN("+", $3.place, T1, T1);
 
@@ -2003,10 +2163,14 @@ Variable:	Iden
 		int T = NewTemp();
 		C = Access_C($1.NO);
 		a = Access_a($1.NO);
-
+		//printf("**%d**", C);
+		char tmp_C[20], tmp_a[20];
+		_itoa(C,tmp_C, 10);
+		_itoa(a,tmp_a, 10);
 		//产生a - C的代码
-		GEN("-", a, C, T);
-
+		GEN("-", Entry(tmp_a), Entry(tmp_C), T);
+		//传递数组名的下标
+		$$.Array_type = VarList[$1.NO].Iv;
 		$$.NO = T;
 		$$.OFFSET = $1.tmp_place;
 
@@ -2147,6 +2311,13 @@ DO: Do
 	$$.nd = cur;
 	//下一个四元式是循环起始位置
 	$$.loop = NXQ;
+	
+	/*处理break continne */
+	stacknode.loop = 0;
+	stacknode.type = DO;
+	stacknode.break_ch = 0;
+	stacknode.continue_ch = 0;
+	push(&stacknode);  //lushangqi   
 
 	//初始化右值
 	struct node *node1;
@@ -2167,6 +2338,12 @@ DSW: DO Statement While
 	$$.loop = $1.loop;
 	//同时由与bool表达式语句出现，因此回填出口
 	BackPatch($2.CH, NXQ);
+
+	/*处理break， continue*/
+	//此时真正应该判断的语句出现
+	top(&stack_item);  //lushangqi
+	BackPatch(stack_item->continue_ch, NXQ);
+
 
 	//初始化右值
 	struct node*node1;
@@ -2194,6 +2371,13 @@ RE: Repeat
 	//下一个四元式是循环起始位置
 	$$.loop = NXQ;
 
+	/*处理break continne */
+	stacknode.loop = 0;
+	stacknode.type = REPEAT;
+	stacknode.break_ch = 0;
+	stacknode.continue_ch = 0;
+	push(&stacknode);  //lushangqi    
+
 	//初始化右值
 	struct node *node1;
 	complete_init_node(&node1, "Repeat");
@@ -2213,6 +2397,12 @@ RSU: RE Statement Until
 	//同时由与bool表达式语句出现，因此回填出口
 	BackPatch($2.CH, NXQ);
 
+
+	/*处理break， continue*/
+	//此时真正应该判断的语句出现
+	top(&stack_item);  //lushangqi
+	BackPatch(stack_item->continue_ch, NXQ);
+
 	//初始化右值
 	struct node*node1;
 	complete_init_node(&node1, "Until");
@@ -2230,7 +2420,27 @@ RSU: RE Statement Until
 %%
 
 int yyerror(char *errstr)
-{
-	printf("Line: %d Reason:%s\n", line_number, errstr);
+{ 
+	printf("\n\n Error: ");
+	printf("Line: %d Reason: ", line_number);
+	switch(error_number) {
+		case REDEFINE_ARRAY :{
+			printf("Array %s is redefined!\n", errstr);
+			break;
+		}
+		case REDEFINE_SIM_VAR :{
+			printf("Simple Var %s is redefined!\n", errstr);
+			break;
+		}
+		case UNDEFINE_VAR :{
+		    printf("Var %s is not defined!\n", errstr);
+			break;
+		}
+		default :{
+			printf("%s\n", errstr);
+			break;
+		}	
+	}
+	exit(-1);
 	return 0;
 }

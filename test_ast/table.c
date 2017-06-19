@@ -5,6 +5,7 @@
 
 #include "table.h"
 #include "pascal_yacc.h"
+#include "util.h"
 #define INT 0
 #define REAL 1
 #define ARRAY 2
@@ -12,8 +13,12 @@
 table_variable VarList[TABLE_MAX_VAR_NUM];//
 array_variable TypeList[TABLE_MAX_VAR_NUM];
 label_variable LabelList[TABLE_MAX_VAR_NUM];
-
-
+extern int yyerror(char *errstr);
+extern char errir_info[MAX_INFO_LEN];
+extern int error_number;
+//最开始变量声明阶段Varflag = 0
+//再到statelist阶段Varflag = 1;
+int VarFlag = 0;
 //符号表
 int VarCount = 0;
 int TypeCount = 0;
@@ -84,6 +89,7 @@ void OutputVarList(void)
 				printf("INTEGER ARRAY\n");
 
 			else printf("REAL ARRAY\n");
+
 		}
 	}
 
@@ -131,9 +137,38 @@ int Enter(char *Name)
 int Entry(char *Name)
 {
 	int i = LookUp(Name);
-	//printf("%d", i);
-	if (i> 0) return i;
-	else return Enter(Name);
+	//排除临时变量和常量等
+	if (Name[0] < 'a' || Name[0] > 'z') {
+		if (i> 0) return i;
+		else return Enter(Name);
+	}
+	//变量定义阶段
+	if (VarFlag == 0) {
+		if (i == 0) {//表明尚未定义
+			return Enter(Name);
+		}
+		else {
+			if (VarList[i].type == ARRAY)
+				error_number = REDEFINE_ARRAY;
+			else 
+				error_number = REDEFINE_SIM_VAR;
+
+			sprintf(errir_info, "%s", Name);
+			yyerror(Name);
+			return 0;
+		}
+	}
+	else{  //变量使用阶段
+		if (i == 0) {//表明尚未定义
+			error_number = UNDEFINE_VAR;
+			sprintf(errir_info, "%s", Name);
+			yyerror(Name);
+		}
+		else {
+			return i;
+		}
+	}
+	return 0;
 }
 
 
@@ -142,9 +177,9 @@ int Entry(char *Name)
 
 int NewTemp()
 {
-	char tmp_name[5]; //整个字符串
+	char tmp_name[5]; //整个字符串  //lushangqi
 	//保存格式为T0， T1...
-	sprintf(tmp_name, "T%d", tmp_cnt);
+	sprintf(tmp_name, "#T%d", tmp_cnt);
 	tmp_cnt++;
 	return Entry(tmp_name);
 }
@@ -197,8 +232,6 @@ int New_Array_Type()
 
 void Update_D(int no, int dim, int L, int R)
 {
-
-
 	TypeList[no].n = dim;
 	TypeList[no].L[dim] = L;
 	TypeList[no].U[dim] = R;
@@ -289,7 +322,7 @@ int EnterLabel(char *Name)
 
 int LookUpLabel(char *Name)
 {
-	printf("\nname: %s\n", Name);
+	//printf("\nname: %s\n", Name);
 	for (int i = 1; i <= LabelCount; i++) {
 		if (strcmp(LabelList[i].name, Name) == 0) {
 			return i;

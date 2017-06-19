@@ -1,10 +1,13 @@
 Program a;
-Var i:integer;
+Var i,j:integer;
+{if Ç¶Ì× while do ºÍ do while }
 Begin
     i:=5;
+    j:=1;
     if i<5 then
-        if i>=6 then
-            i:=7
-        else i:= 8
+    begin
+        while j < 10 do j := j + 1;
+        do j := j - 1 while j >= 1;
+    end
     else i:=9;
 End.

@@ -90,7 +90,9 @@ win_flex --header-file=pascal_lex.h -o pascal_lex.c --wincompat pascal_lex.l
     <ClCompile Include="ir.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="queue.c" />
+    <ClCompile Include="stack.c" />
     <ClCompile Include="table.c" />
+    <ClCompile Include="util.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ast.h" />
@@ -98,7 +100,9 @@ win_flex --header-file=pascal_lex.h -o pascal_lex.c --wincompat pascal_lex.l
     <ClInclude Include="pascal_lex.h" />
     <ClInclude Include="pascal_yacc.h" />
     <ClInclude Include="queue.h" />
+    <ClInclude Include="stack.h" />
     <ClInclude Include="table.h" />
+    <ClInclude Include="util.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="pascal_lex.l" />

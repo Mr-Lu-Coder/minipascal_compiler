@@ -3,5 +3,5 @@ Var arr:array [1 ..10,1..20, 1 .. 30] of real;i,j,k:integer;
 Begin
     j := 4 + 5;
     arr[i,j,k]:=3.4;
-
+    k := arr[k,j,i]+3;
 End.

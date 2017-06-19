@@ -3,6 +3,6 @@ Var i,j:integer;
     
 Begin
     i:=59;
-    if i = 10 then i:=10 else i:=j+11;
+    if i = 10 then i:=10;
     
 End.

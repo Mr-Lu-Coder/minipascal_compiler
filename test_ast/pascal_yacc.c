@@ -75,18 +75,32 @@
 #include "table.h"
 #include "pascal_lex.h"
 #include "queue.h"
-
+#include "stack.h"  
+#include "util.h"
 extern int line_number;
+extern int error_number;
 int yyerror(char*);
+
+
 
 #define INT 0
 #define REAL 1
 #define ARRAY 2
+
+#define WHILE 1
+#define FOR 2
+#define DO 3
+#define REPEAT 4
+
+
+
+
+
 LinkQueue case_queue;
 QElemType item;
+LoopStack_ *stack_item, stacknode;
 
-
-#line 90 "pascal_yacc.c" /* yacc.c:339  */
+#line 104 "pascal_yacc.c" /* yacc.c:339  */
 
 # ifndef YY_NULL
 #  if defined __cplusplus && 201103L <= __cplusplus
@@ -148,6 +162,8 @@ extern int yydebug;
     OneDimString = 420,
     Goto = 421,
     Case = 422,
+    Break = 423,
+    Continue = 424,
     LE = 500,
     GE = 501,
     NE = 502,
@@ -162,7 +178,7 @@ extern int yydebug;
 typedef union YYSTYPE YYSTYPE;
 union YYSTYPE
 {
-#line 26 "pascal_yacc.y" /* yacc.c:355  */
+#line 40 "pascal_yacc.y" /* yacc.c:355  */
 
 	int Iv;                //类型                         
 	int CH;                //CH表示链             
@@ -228,12 +244,16 @@ union YYSTYPE
 	//for循环节点
 	struct {
 		int loop, place, CH; 
+		int Break_CH, Continue_CH;
+		int type;
 		struct node *nd;
 	} ForLoop_node;
 	//变量节点
 	struct {
+	    int Array_type; //传递数组是real类型还是Int类型
 		int NO;
 		int OFFSET; //
+		char str[20];
 		struct node* nd;
 	}Variable_node;
 	//ExprList
@@ -267,7 +287,7 @@ union YYSTYPE
 	}case_node;
 
 
-#line 271 "pascal_yacc.c" /* yacc.c:355  */
+#line 291 "pascal_yacc.c" /* yacc.c:355  */
 };
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1
@@ -282,7 +302,7 @@ int yyparse (void);
 
 /* Copy the second part of user declarations.  */
 
-#line 286 "pascal_yacc.c" /* yacc.c:358  */
+#line 306 "pascal_yacc.c" /* yacc.c:358  */
 
 #ifdef short
 # undef short
@@ -505,16 +525,16 @@ union yyalloc
 /* YYFINAL -- State number of the termination state.  */
 #define YYFINAL  4
 /* YYLAST -- Last index in YYTABLE.  */
-#define YYLAST   193
+#define YYLAST   195
 
 /* YYNTOKENS -- Number of terminals.  */
-#define YYNTOKENS  51
+#define YYNTOKENS  53
 /* YYNNTS -- Number of nonterminals.  */
 #define YYNNTS  40
 /* YYNRULES -- Number of rules.  */
-#define YYNRULES  83
+#define YYNRULES  85
 /* YYNSTATES -- Number of states.  */
-#define YYNSTATES  161
+#define YYNSTATES  163
 
 /* YYTRANSLATE[YYX] -- Symbol number corresponding to YYX as returned
    by yylex, with out-of-bounds checking.  */
@@ -532,12 +552,12 @@ static const yytype_uint8 yytranslate[] =
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-      49,    50,    40,    38,    47,    39,    44,    41,     2,     2,
-       2,     2,     2,     2,     2,     2,     2,     2,    45,    43,
-      35,    37,    36,     2,     2,     2,     2,     2,     2,     2,
+      51,    52,    42,    40,    49,    41,    46,    43,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,    47,    45,
+      37,    39,    38,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,    48,     2,    46,     2,     2,     2,     2,     2,     2,
+       2,    50,     2,    48,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
@@ -570,7 +590,7 @@ static const yytype_uint8 yytranslate[] =
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        7,     8,     9,    10,    11,    12,    13,    14,    15,    16,
       17,    18,    19,    20,    21,    22,    23,    24,    25,    26,
-      27,    28,    29,     2,     2,     2,     2,     2,     2,     2,
+      27,    28,    29,    30,    31,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
@@ -578,7 +598,7 @@ static const yytype_uint8 yytranslate[] =
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-      30,    31,    32,    33,     2,     2,     2,     2,     2,     2,
+      32,    33,    34,    35,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
@@ -588,22 +608,22 @@ static const yytype_uint8 yytranslate[] =
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-      34,     2,    42
+      36,     2,    44
 };
 
 #if YYDEBUG
   /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,   223,   223,   259,   273,   298,   317,   334,   347,   380,
-     397,   415,   443,   471,   502,   529,   551,   571,   593,   608,
-     630,   652,   678,   692,   709,   728,   750,   772,   792,   809,
-     840,   857,   899,   955,   967,   998,  1011,  1024,  1051,  1084,
-    1115,  1144,  1167,  1191,  1207,  1253,  1299,  1347,  1392,  1419,
-    1442,  1469,  1488,  1516,  1534,  1552,  1573,  1595,  1614,  1635,
-    1658,  1687,  1727,  1761,  1804,  1844,  1882,  1894,  1907,  1951,
-    1979,  1996,  2018,  2035,  2055,  2069,  2084,  2098,  2112,  2126,
-    2142,  2159,  2188,  2204
+       0,   246,   246,   282,   296,   321,   340,   357,   370,   403,
+     420,   438,   466,   494,   525,   552,   574,   594,   616,   631,
+     653,   675,   701,   715,   732,   751,   782,   811,   839,   856,
+     902,   919,   961,  1008,  1044,  1097,  1109,  1140,  1153,  1166,
+    1193,  1235,  1266,  1295,  1318,  1350,  1366,  1412,  1458,  1506,
+    1551,  1578,  1601,  1630,  1649,  1678,  1696,  1714,  1735,  1757,
+    1776,  1797,  1820,  1849,  1888,  1922,  1964,  2004,  2042,  2054,
+    2067,  2111,  2139,  2156,  2182,  2199,  2219,  2233,  2248,  2262,
+    2276,  2290,  2306,  2330,  2365,  2388
 };
 #endif
 
@@ -615,16 +635,16 @@ static const char *const yytname[] =
   "$end", "error", "$undefined", "Iden", "IntNo", "RealNo", "CHAR",
   "Program", "Begin", "End", "Var", "Integer", "Real", "While", "Do", "If",
   "Then", "Else", "Or", "And", "Not", "For", "To", "Repeat", "Until", "Of",
-  "Array", "OneDimString", "Goto", "Case", "LE", "GE", "NE", "Asign",
-  "ERRORCHAR", "'<'", "'>'", "'='", "'+'", "'-'", "'*'", "'/'", "UMINUS",
-  "';'", "'.'", "':'", "']'", "','", "'['", "'('", "')'", "$accept",
-  "ProgDef", "SubProg", "CompState", "VarDef", "VarDefList", "VarDefState",
-  "Type", "TypeFirst", "OneDim", "VarList", "StateList", "S_L",
-  "Statement", "LabelDef", "Label", "ForLoop1", "ForLoop2", "AsignState",
-  "ISE", "IBT", "WBD", "Wh", "Expr", "BoolExpr", "BoolExpr_or",
-  "BoolExpr_and", "CaseWithElse", "InCase", "CaseWithConst", "CaseStart",
-  "case_const", "ExprList", "Variable", "Const", "RelationOp", "DO", "DSW",
-  "RE", "RSU", YY_NULL
+  "Array", "OneDimString", "Goto", "Case", "Break", "Continue", "LE", "GE",
+  "NE", "Asign", "ERRORCHAR", "'<'", "'>'", "'='", "'+'", "'-'", "'*'",
+  "'/'", "UMINUS", "';'", "'.'", "':'", "']'", "','", "'['", "'('", "')'",
+  "$accept", "ProgDef", "SubProg", "CompState", "VarDef", "VarDefList",
+  "VarDefState", "Type", "TypeFirst", "OneDim", "VarList", "StateList",
+  "S_L", "Statement", "LabelDef", "Label", "ForLoop1", "ForLoop2",
+  "AsignState", "ISE", "IBT", "WBD", "Wh", "Expr", "BoolExpr",
+  "BoolExpr_or", "BoolExpr_and", "CaseWithElse", "InCase", "CaseWithConst",
+  "CaseStart", "case_const", "ExprList", "Variable", "Const", "RelationOp",
+  "DO", "DSW", "RE", "RSU", YY_NULL
 };
 #endif
 
@@ -636,18 +656,18 @@ static const yytype_uint16 yytoknum[] =
        0,   256,   601,   300,   301,   302,   303,   400,   401,   402,
      403,   404,   405,   406,   407,   408,   409,   410,   411,   412,
      413,   414,   415,   416,   417,   418,   419,   420,   421,   422,
-     500,   501,   502,   503,   600,    60,    62,    61,    43,    45,
-      42,    47,   602,    59,    46,    58,    93,    44,    91,    40,
-      41
+     423,   424,   500,   501,   502,   503,   600,    60,    62,    61,
+      43,    45,    42,    47,   602,    59,    46,    58,    93,    44,
+      91,    40,    41
 };
 # endif
 
-#define YYPACT_NINF -35
+#define YYPACT_NINF -23
 
 #define yypact_value_is_default(Yystate) \
-  (!!((Yystate) == (-35)))
+  (!!((Yystate) == (-23)))
 
-#define YYTABLE_NINF -73
+#define YYTABLE_NINF -75
 
 #define yytable_value_is_error(Yytable_value) \
   0
@@ -656,23 +676,23 @@ static const yytype_uint16 yytoknum[] =
      STATE-NUM.  */
 static const yytype_int16 yypact[] =
 {
-      -6,     5,    20,   -14,   -35,    15,    35,    12,    55,    27,
-      40,   -35,   -34,    34,   -35,   -35,   104,   -35,    57,    35,
-      -8,    35,   -35,    57,   -21,   -35,   -35,   -35,    54,    91,
-     -35,    69,    57,   -35,    -7,   104,   -35,   104,    33,   106,
-      90,   -35,   104,   104,   104,    54,   104,    28,   104,    48,
-      93,   104,    54,   104,    54,   -35,   -35,    57,    57,    75,
-     -35,   -35,   -35,   -35,   -35,    76,   -35,    63,   -35,    75,
-     115,   129,    54,    54,   141,    31,    54,    54,   110,   -35,
-     -35,    46,   -35,   -35,   -35,   -35,   -35,    57,   104,   -35,
-     127,   -35,    81,   105,   -35,   -35,   -35,   112,   119,   113,
-      57,   161,   102,   151,   102,   -35,    26,    57,    57,    57,
-      57,     3,   158,     3,   -35,    99,    -9,   -35,   -35,   -35,
-     -35,   -35,   -35,    57,   -35,   -35,   -35,   102,   102,    57,
-     -35,    75,   -35,   -35,   -35,   175,   -35,   -35,   -35,    75,
-     -35,   -35,   -35,    82,    82,   -35,   -35,   142,   -35,   -35,
-     130,   -35,   -35,    75,    75,   -35,   143,   -35,   -35,   181,
-     -35
+      -6,     5,    20,   -13,   -23,    37,    57,    28,    69,    33,
+      36,   -23,   -20,    18,   -23,   -23,    95,   -23,     8,    57,
+      -8,    57,   -23,     8,   -10,   -23,   -23,   -23,    31,    92,
+     -23,   108,     8,   -23,   -23,   -23,    -7,    95,   -23,    95,
+      42,    84,   103,   -23,    95,    95,    95,    31,    95,    48,
+      95,    52,   121,    95,    31,    95,    31,   -23,   -23,     8,
+       8,    79,   -23,   -23,   -23,   -23,   -23,    77,   -23,    66,
+     -23,    79,   112,   126,    31,    31,   138,    86,    31,    31,
+     122,   -23,   -23,    45,   -23,   -23,   -23,   -23,   -23,     8,
+      95,   -23,   130,   -23,    61,   116,   -23,   -23,   -23,   127,
+     128,   135,     8,   170,   113,   160,   113,   -23,    21,     8,
+       8,     8,     8,     3,   161,     3,   -23,    96,    -9,   -23,
+     -23,   -23,   -23,   -23,   -23,     8,   -23,   -23,   -23,   113,
+     113,     8,   -23,    79,   -23,   -23,   -23,   176,   -23,   -23,
+     -23,    79,   -23,   -23,   -23,    98,    98,   -23,   -23,   141,
+     -23,   -23,   131,   -23,   -23,    79,    79,   -23,   142,   -23,
+     -23,   185,   -23
 };
 
   /* YYDEFACT[STATE-NUM] -- Default reduction number in state STATE-NUM.
@@ -680,41 +700,41 @@ static const yytype_int16 yypact[] =
      means the default is an error.  */
 static const yytype_uint8 yydefact[] =
 {
-       0,     0,     0,     0,     1,     0,     0,     0,     0,    70,
-       0,     7,     0,     0,    18,     2,    33,     3,     0,     5,
-       0,     0,    71,     0,    36,    35,    43,    80,     0,     0,
-      82,     0,     0,    28,     0,    33,    20,    33,     0,     0,
-       0,    22,    33,    33,    33,     0,    33,     0,    33,     0,
-       0,     0,     0,    33,     0,    72,    73,     0,     0,    69,
-      50,    51,     6,     9,    10,     0,     8,     0,    17,    68,
-      57,    58,     0,     0,     0,     0,     0,     0,     0,    36,
-      31,     0,     4,    21,    19,    30,    34,     0,    33,    23,
-      24,    25,     0,     0,    66,    67,    61,     0,     0,     0,
-       0,     0,    26,     0,    27,    49,     0,     0,     0,     0,
-       0,     0,     0,     0,    55,     0,     0,    79,    77,    78,
-      74,    75,    76,     0,    41,    59,    60,    54,    53,     0,
-      65,    38,    29,    40,    42,     0,    64,    62,    63,    39,
-      81,    83,    48,    44,    45,    46,    47,     0,    16,    14,
-       0,    13,    56,    52,    37,    32,     0,    11,    12,     0,
-      15
+       0,     0,     0,     0,     1,     0,     0,     0,     0,    72,
+       0,     7,     0,     0,    18,     2,    35,     3,     0,     5,
+       0,     0,    73,     0,    38,    37,    45,    82,     0,     0,
+      84,     0,     0,    33,    34,    28,     0,    35,    20,    35,
+       0,     0,     0,    22,    35,    35,    35,     0,    35,     0,
+      35,     0,     0,     0,     0,    35,     0,    74,    75,     0,
+       0,    71,    52,    53,     6,     9,    10,     0,     8,     0,
+      17,    70,    59,    60,     0,     0,     0,     0,     0,     0,
+       0,    38,    31,     0,     4,    21,    19,    30,    36,     0,
+      35,    23,    24,    25,     0,     0,    68,    69,    63,     0,
+       0,     0,     0,     0,    26,     0,    27,    51,     0,     0,
+       0,     0,     0,     0,     0,     0,    57,     0,     0,    81,
+      79,    80,    76,    77,    78,     0,    43,    61,    62,    56,
+      55,     0,    67,    40,    29,    42,    44,     0,    66,    64,
+      65,    41,    83,    85,    50,    46,    47,    48,    49,     0,
+      16,    14,     0,    13,    58,    54,    39,    32,     0,    11,
+      12,     0,    15
 };
 
   /* YYPGOTO[NTERM-NUM].  */
 static const yytype_int16 yypgoto[] =
 {
-     -35,   -35,   -35,   180,   -35,   -35,   170,   -35,   -35,    77,
-     -35,   -35,   -35,   -20,   -35,   160,   -35,   -35,   -35,   -35,
-     -35,   -35,   -35,   -18,    25,   -35,   -35,   -35,   -35,   -35,
-     -35,   144,   -35,     0,   -35,   -35,   -35,   -35,   -35,   -35
+     -23,   -23,   -23,   182,   -23,   -23,   172,   -23,   -23,    78,
+     -23,   -23,   -23,   -22,   -23,   163,   -23,   -23,   -23,   -23,
+     -23,   -23,   -23,   -18,    22,   -23,   -23,   -23,   -23,   -23,
+     -23,   144,   -23,     0,   -23,   -23,   -23,   -23,   -23,   -23
 };
 
   /* YYDEFGOTO[NTERM-NUM].  */
 static const yytype_int16 yydefgoto[] =
 {
-      -1,     2,     7,    33,     8,    10,    11,    66,    67,   149,
-      12,    34,    35,    36,    37,    38,    39,    40,    41,    42,
-      43,    44,    45,    74,    75,    76,    77,    46,    47,    48,
-      49,    97,    13,    60,    61,   123,    51,    52,    53,    54
+      -1,     2,     7,    35,     8,    10,    11,    68,    69,   151,
+      12,    36,    37,    38,    39,    40,    41,    42,    43,    44,
+      45,    46,    47,    76,    77,    78,    79,    48,    49,    50,
+      51,    99,    13,    62,    63,   125,    53,    54,    55,    56
 };
 
   /* YYTABLE[YYPACT[STATE-NUM]] -- What to do in state STATE-NUM.  If
@@ -722,87 +742,87 @@ static const yytype_int16 yydefgoto[] =
      number is the opposite.  If YYTABLE_NINF, syntax error.  */
 static const yytype_int16 yytable[] =
 {
-      59,     1,    82,    63,    64,    69,    14,   147,     3,   125,
-     126,    20,   -70,    21,    81,    84,    50,    85,    65,    14,
-       4,    68,    89,    90,    91,     6,    93,    18,    98,     5,
-     148,   101,    94,   103,    95,    50,    83,    50,     9,   105,
-     106,   152,    50,    50,    50,    96,    50,   124,    50,   125,
-     126,    50,    94,    50,    95,   115,    15,    70,    71,    56,
-       9,    55,    56,    16,   107,   108,   109,   110,   132,   131,
-      92,   130,    79,    25,    72,    18,   142,   102,    86,   104,
-      22,    23,   139,    19,   107,   108,   109,   110,    50,   143,
-     144,   145,   146,    57,    78,   134,    57,   114,   116,   125,
-     126,   127,   128,    73,    88,   153,    58,    24,    25,   112,
-     113,   154,    16,   107,   108,   109,   110,    26,    27,    28,
-     125,   126,   109,   110,   111,    29,   100,    30,    87,   117,
-     118,   119,    31,    32,   120,   121,   122,   107,   108,   109,
-     110,   157,   158,   129,   133,   -70,   -70,   -70,   135,   142,
-     -70,   -70,   -70,   -70,   -70,   -70,   -70,   136,   138,   -72,
-     -72,   -72,   137,    18,   -72,   -72,   -72,   -72,   -72,   -72,
-     -72,   117,   118,   119,   140,   141,   120,   121,   122,   107,
-     108,   109,   110,   150,   155,   160,   156,   159,    17,    62,
-     151,    80,     0,    99
+      61,     1,    84,    65,    66,    71,    14,   149,     3,   127,
+     128,     9,    57,    58,    83,    86,    52,    87,    67,    14,
+       4,    70,    91,    92,    93,   -72,    95,    20,   100,    21,
+     150,   103,     5,   105,    72,    73,    58,    52,    85,    52,
+      18,   107,   108,   154,    52,    52,    52,     6,    52,    59,
+      52,    74,    96,    52,    97,    52,    96,   117,    97,    60,
+       9,   109,   110,   111,   112,    98,    22,    23,   134,    94,
+     132,   133,    59,   144,    15,   136,   104,    16,   106,   127,
+     128,    19,    75,    18,   141,   109,   110,   111,   112,    88,
+      52,   145,   146,   147,   148,    80,   116,   118,    24,    25,
+     129,   130,   126,    16,   127,   128,    89,   155,    26,    27,
+      28,    81,    25,   156,   114,   115,    29,    90,    30,   109,
+     110,   111,   112,    31,    32,    33,    34,   113,   119,   120,
+     121,   127,   128,   122,   123,   124,   109,   110,   111,   112,
+     111,   112,   159,   160,   -72,   -72,   -72,   135,   144,   -72,
+     -72,   -72,   -72,   -72,   -72,   -72,   102,   131,   -74,   -74,
+     -74,   137,    18,   -74,   -74,   -74,   -74,   -74,   -74,   -74,
+     119,   120,   121,   139,   138,   122,   123,   124,   109,   110,
+     111,   112,   140,   142,   143,   157,   152,   158,   161,   162,
+      17,    64,     0,   153,    82,   101
 };
 
 static const yytype_int16 yycheck[] =
 {
       18,     7,     9,    11,    12,    23,     6,     4,     3,    18,
-      19,    45,    33,    47,    32,    35,    16,    37,    26,    19,
-       0,    21,    42,    43,    44,    10,    46,    48,    48,    43,
-      27,    51,     4,    53,     6,    35,    43,    37,     3,    57,
-      58,    50,    42,    43,    44,    17,    46,    16,    48,    18,
-      19,    51,     4,    53,     6,    73,    44,     3,     4,     5,
-       3,     4,     5,     8,    38,    39,    40,    41,    88,    87,
-      45,    25,     3,     4,    20,    48,    50,    52,    45,    54,
-      46,    47,   100,    43,    38,    39,    40,    41,    88,   107,
-     108,   109,   110,    39,     3,    14,    39,    72,    73,    18,
-      19,    76,    77,    49,    14,   123,    49,     3,     4,    46,
-      47,   129,     8,    38,    39,    40,    41,    13,    14,    15,
-      18,    19,    40,    41,    48,    21,    33,    23,    22,    30,
-      31,    32,    28,    29,    35,    36,    37,    38,    39,    40,
-      41,    11,    12,    33,    17,    30,    31,    32,    43,    50,
-      35,    36,    37,    38,    39,    40,    41,    45,    45,    30,
-      31,    32,    43,    48,    35,    36,    37,    38,    39,    40,
-      41,    30,    31,    32,    13,    24,    35,    36,    37,    38,
-      39,    40,    41,    25,     9,     4,    44,    44,     8,    19,
-     113,    31,    -1,    49
+      19,     3,     4,     5,    32,    37,    16,    39,    26,    19,
+       0,    21,    44,    45,    46,    35,    48,    47,    50,    49,
+      27,    53,    45,    55,     3,     4,     5,    37,    45,    39,
+      50,    59,    60,    52,    44,    45,    46,    10,    48,    41,
+      50,    20,     4,    53,     6,    55,     4,    75,     6,    51,
+       3,    40,    41,    42,    43,    17,    48,    49,    90,    47,
+      25,    89,    41,    52,    46,    14,    54,     8,    56,    18,
+      19,    45,    51,    50,   102,    40,    41,    42,    43,    47,
+      90,   109,   110,   111,   112,     3,    74,    75,     3,     4,
+      78,    79,    16,     8,    18,    19,    22,   125,    13,    14,
+      15,     3,     4,   131,    48,    49,    21,    14,    23,    40,
+      41,    42,    43,    28,    29,    30,    31,    50,    32,    33,
+      34,    18,    19,    37,    38,    39,    40,    41,    42,    43,
+      42,    43,    11,    12,    32,    33,    34,    17,    52,    37,
+      38,    39,    40,    41,    42,    43,    35,    35,    32,    33,
+      34,    45,    50,    37,    38,    39,    40,    41,    42,    43,
+      32,    33,    34,    45,    47,    37,    38,    39,    40,    41,
+      42,    43,    47,    13,    24,     9,    25,    46,    46,     4,
+       8,    19,    -1,   115,    31,    51
 };
 
   /* YYSTOS[STATE-NUM] -- The (internal number of the) accessing
      symbol of state STATE-NUM.  */
 static const yytype_uint8 yystos[] =
 {
-       0,     7,    52,     3,     0,    43,    10,    53,    55,     3,
-      56,    57,    61,    83,    84,    44,     8,    54,    48,    43,
-      45,    47,    46,    47,     3,     4,    13,    14,    15,    21,
-      23,    28,    29,    54,    62,    63,    64,    65,    66,    67,
-      68,    69,    70,    71,    72,    73,    78,    79,    80,    81,
-      84,    87,    88,    89,    90,     4,     5,    39,    49,    74,
-      84,    85,    57,    11,    12,    26,    58,    59,    84,    74,
-       3,     4,    20,    49,    74,    75,    76,    77,     3,     3,
-      66,    74,     9,    43,    64,    64,    45,    22,    14,    64,
-      64,    64,    75,    64,     4,     6,    17,    82,    64,    82,
-      33,    64,    75,    64,    75,    74,    74,    38,    39,    40,
-      41,    48,    46,    47,    75,    74,    75,    30,    31,    32,
-      35,    36,    37,    86,    16,    18,    19,    75,    75,    33,
-      25,    74,    64,    17,    14,    43,    45,    43,    45,    74,
-      13,    24,    50,    74,    74,    74,    74,     4,    27,    60,
-      25,    60,    50,    74,    74,     9,    44,    11,    12,    44,
-       4
+       0,     7,    54,     3,     0,    45,    10,    55,    57,     3,
+      58,    59,    63,    85,    86,    46,     8,    56,    50,    45,
+      47,    49,    48,    49,     3,     4,    13,    14,    15,    21,
+      23,    28,    29,    30,    31,    56,    64,    65,    66,    67,
+      68,    69,    70,    71,    72,    73,    74,    75,    80,    81,
+      82,    83,    86,    89,    90,    91,    92,     4,     5,    41,
+      51,    76,    86,    87,    59,    11,    12,    26,    60,    61,
+      86,    76,     3,     4,    20,    51,    76,    77,    78,    79,
+       3,     3,    68,    76,     9,    45,    66,    66,    47,    22,
+      14,    66,    66,    66,    77,    66,     4,     6,    17,    84,
+      66,    84,    35,    66,    77,    66,    77,    76,    76,    40,
+      41,    42,    43,    50,    48,    49,    77,    76,    77,    32,
+      33,    34,    37,    38,    39,    88,    16,    18,    19,    77,
+      77,    35,    25,    76,    66,    17,    14,    45,    47,    45,
+      47,    76,    13,    24,    52,    76,    76,    76,    76,     4,
+      27,    62,    25,    62,    52,    76,    76,     9,    46,    11,
+      12,    46,     4
 };
 
   /* YYR1[YYN] -- Symbol number of symbol that rule YYN derives.  */
 static const yytype_uint8 yyr1[] =
 {
-       0,    51,    52,    53,    54,    55,    56,    56,    57,    58,
-      58,    58,    58,    59,    59,    60,    60,    61,    61,    62,
-      62,    63,    64,    64,    64,    64,    64,    64,    64,    64,
-      64,    64,    64,    64,    65,    66,    66,    67,    68,    69,
-      70,    71,    72,    73,    74,    74,    74,    74,    74,    74,
-      74,    74,    75,    75,    75,    75,    75,    75,    75,    76,
-      77,    78,    79,    80,    80,    81,    82,    82,    83,    83,
-      84,    84,    85,    85,    86,    86,    86,    86,    86,    86,
-      87,    88,    89,    90
+       0,    53,    54,    55,    56,    57,    58,    58,    59,    60,
+      60,    60,    60,    61,    61,    62,    62,    63,    63,    64,
+      64,    65,    66,    66,    66,    66,    66,    66,    66,    66,
+      66,    66,    66,    66,    66,    66,    67,    68,    68,    69,
+      70,    71,    72,    73,    74,    75,    76,    76,    76,    76,
+      76,    76,    76,    76,    77,    77,    77,    77,    77,    77,
+      77,    78,    79,    80,    81,    82,    82,    83,    84,    84,
+      85,    85,    86,    86,    87,    87,    88,    88,    88,    88,
+      88,    88,    89,    90,    91,    92
 };
 
   /* YYR2[YYN] -- Number of symbols on the right hand side of rule YYN.  */
@@ -811,12 +831,12 @@ static const yytype_uint8 yyr2[] =
        0,     2,     5,     2,     3,     3,     3,     1,     3,     1,
        1,     4,     4,     3,     3,     4,     1,     3,     1,     2,
        1,     2,     1,     2,     2,     2,     2,     2,     1,     3,
-       2,     2,     4,     0,     2,     1,     1,     4,     3,     3,
-       3,     3,     3,     1,     3,     3,     3,     3,     3,     2,
-       1,     1,     3,     2,     2,     2,     3,     1,     1,     2,
-       2,     2,     3,     3,     3,     3,     1,     1,     3,     3,
-       1,     2,     1,     1,     1,     1,     1,     1,     1,     1,
-       1,     3,     1,     3
+       2,     2,     4,     1,     1,     0,     2,     1,     1,     4,
+       3,     3,     3,     3,     3,     1,     3,     3,     3,     3,
+       3,     2,     1,     1,     3,     2,     2,     2,     3,     1,
+       1,     2,     2,     2,     3,     3,     3,     3,     1,     1,
+       3,     3,     1,     2,     1,     1,     1,     1,     1,     1,
+       1,     1,     1,     3,     1,     3
 };
 
 
@@ -1493,7 +1513,7 @@ yyreduce:
   switch (yyn)
     {
         case 2:
-#line 224 "pascal_yacc.y" /* yacc.c:1646  */
+#line 247 "pascal_yacc.y" /* yacc.c:1646  */
     {
 				printf("\n分析成功\n");
 				set_node_val_str(&ast_root,(yyvsp[-3].str));
@@ -1528,11 +1548,11 @@ yyreduce:
 				//printf("In ProgDef: %s\n", node4->val.str);
 				add_brother_node((yyvsp[-1].ast_node), node4);
 }
-#line 1532 "pascal_yacc.c" /* yacc.c:1646  */
+#line 1552 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
   case 3:
-#line 260 "pascal_yacc.y" /* yacc.c:1646  */
+#line 283 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//初始化左值
 		struct node* cur;
@@ -1545,13 +1565,13 @@ yyreduce:
 		add_son_node((yyval.ast_node),(yyvsp[-1].ch_node).nd);
 		add_brother_node((yyvsp[-1].ch_node).nd,(yyvsp[0].ch_node).nd);    	
 		}
-#line 1549 "pascal_yacc.c" /* yacc.c:1646  */
+#line 1569 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
   case 4:
-#line 274 "pascal_yacc.y" /* yacc.c:1646  */
+#line 297 "pascal_yacc.y" /* yacc.c:1646  */
     {
-		printf("test for begin and end\n");
+		//printf("test for begin and end\n");
 		//给左边非终结符赋值
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
@@ -1573,11 +1593,11 @@ yyreduce:
 		add_brother_node((yyvsp[-1].ch_node).nd, node2);
 
 		}
-#line 1577 "pascal_yacc.c" /* yacc.c:1646  */
+#line 1597 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
   case 5:
-#line 299 "pascal_yacc.y" /* yacc.c:1646  */
+#line 322 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//初始化左值
 		struct node* cur;
@@ -1595,11 +1615,11 @@ yyreduce:
 
 
 		}
-#line 1599 "pascal_yacc.c" /* yacc.c:1646  */
+#line 1619 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
   case 6:
-#line 318 "pascal_yacc.y" /* yacc.c:1646  */
+#line 341 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//puts("reduce real");
 		//初始化左值
@@ -1616,11 +1636,11 @@ yyreduce:
 		add_brother_node((yyvsp[-2].ch_node).nd,node1); 
 		add_brother_node(node1,(yyvsp[0].ch_node).nd);  
 		}
-#line 1620 "pascal_yacc.c" /* yacc.c:1646  */
+#line 1640 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
   case 7:
-#line 335 "pascal_yacc.y" /* yacc.c:1646  */
+#line 358 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//puts("reduce real");
 		//初始化左值
@@ -1632,11 +1652,11 @@ yyreduce:
 		//建立关系
 		add_son_node((yyval.ch_node).nd ,(yyvsp[0].ch_node).nd);
         }
-#line 1636 "pascal_yacc.c" /* yacc.c:1646  */
+#line 1656 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
   case 8:
-#line 348 "pascal_yacc.y" /* yacc.c:1646  */
+#line 371 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		
 		//初始化左值
@@ -1668,11 +1688,11 @@ yyreduce:
 		//puts("AAAend");
 
 		}
-#line 1672 "pascal_yacc.c" /* yacc.c:1646  */
+#line 1692 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
   case 9:
-#line 381 "pascal_yacc.y" /* yacc.c:1646  */
+#line 404 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//printf("INTAAA\n");
 		//初始化左值
@@ -1689,11 +1709,11 @@ yyreduce:
 		
 		
 		}
-#line 1693 "pascal_yacc.c" /* yacc.c:1646  */
+#line 1713 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
   case 10:
-#line 398 "pascal_yacc.y" /* yacc.c:1646  */
+#line 421 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//printf("REALAAA\n");
 		//初始化左值
@@ -1711,11 +1731,11 @@ yyreduce:
 
 
 		}
-#line 1715 "pascal_yacc.c" /* yacc.c:1646  */
+#line 1735 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
   case 11:
-#line 416 "pascal_yacc.y" /* yacc.c:1646  */
+#line 439 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//printf("REALAAA\n");
 		//初始化左值
@@ -1743,11 +1763,11 @@ yyreduce:
 		add_brother_node(node2,node3);  
 
 		}
-#line 1747 "pascal_yacc.c" /* yacc.c:1646  */
+#line 1767 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
   case 12:
-#line 444 "pascal_yacc.y" /* yacc.c:1646  */
+#line 467 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//printf("REALAAA\n");
 		//初始化左值
@@ -1774,11 +1794,11 @@ yyreduce:
 		add_brother_node(node1,node2);  
 		add_brother_node(node2,node3);  
 		}
-#line 1778 "pascal_yacc.c" /* yacc.c:1646  */
+#line 1798 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
   case 13:
-#line 472 "pascal_yacc.y" /* yacc.c:1646  */
+#line 495 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//printf("REALAAA\n");
 		//初始化左值
@@ -1809,11 +1829,11 @@ yyreduce:
 
 			
 		}
-#line 1813 "pascal_yacc.c" /* yacc.c:1646  */
+#line 1833 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
   case 14:
-#line 503 "pascal_yacc.y" /* yacc.c:1646  */
+#line 526 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//printf("REALAAA\n");
 		//初始化左值
@@ -1837,11 +1857,11 @@ yyreduce:
 		add_brother_node(node2,(yyvsp[0].OneDim_node).nd);  
 
 		}
-#line 1841 "pascal_yacc.c" /* yacc.c:1646  */
+#line 1861 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
   case 15:
-#line 530 "pascal_yacc.y" /* yacc.c:1646  */
+#line 553 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//printf("REALAAA\n");
 		//初始化左值
@@ -1864,13 +1884,13 @@ yyreduce:
 
 
 	}
-#line 1868 "pascal_yacc.c" /* yacc.c:1646  */
+#line 1888 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
   case 16:
-#line 551 "pascal_yacc.y" /* yacc.c:1646  */
+#line 574 "pascal_yacc.y" /* yacc.c:1646  */
     {
-		printf("***************\n");
+		//printf("***************\n");
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
 		(yyval.OneDim_node).nd = cur;
@@ -1886,11 +1906,11 @@ yyreduce:
 		//建立关系
 		add_son_node((yyval.OneDim_node).nd, node1);
 	  }
-#line 1890 "pascal_yacc.c" /* yacc.c:1646  */
+#line 1910 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
   case 17:
-#line 572 "pascal_yacc.y" /* yacc.c:1646  */
+#line 595 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
@@ -1912,11 +1932,11 @@ yyreduce:
 		(yyval.first_node).First = Merge_var((yyvsp[0].Variable_node).NO, (yyvsp[-2].first_node).First);
 		//printf("First:%d \n", $$.First);
 		}
-#line 1916 "pascal_yacc.c" /* yacc.c:1646  */
+#line 1936 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
   case 18:
-#line 594 "pascal_yacc.y" /* yacc.c:1646  */
+#line 617 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
@@ -1929,11 +1949,11 @@ yyreduce:
 		//关系
 		add_son_node((yyval.first_node).nd, (yyvsp[0].Variable_node).nd);
 		}
-#line 1933 "pascal_yacc.c" /* yacc.c:1646  */
+#line 1953 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
   case 19:
-#line 609 "pascal_yacc.y" /* yacc.c:1646  */
+#line 632 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//printf("test for StateList\n");
 		//给左边非终结符赋值
@@ -1955,11 +1975,11 @@ yyreduce:
 		//add_brother_node($2.nd, node1);
 		
 		}
-#line 1959 "pascal_yacc.c" /* yacc.c:1646  */
+#line 1979 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
   case 20:
-#line 631 "pascal_yacc.y" /* yacc.c:1646  */
+#line 654 "pascal_yacc.y" /* yacc.c:1646  */
     {
 
 		//printf("test for Statement\n");
@@ -1980,11 +2000,11 @@ yyreduce:
 		add_son_node((yyval.ch_node).nd, (yyvsp[0].ch_node).nd);
 		//add_brother_node($1.nd, node1);
 		}
-#line 1984 "pascal_yacc.c" /* yacc.c:1646  */
+#line 2004 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
   case 21:
-#line 653 "pascal_yacc.y" /* yacc.c:1646  */
+#line 676 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//printf("test for State_L\n");
 		//给左边非终结符赋值
@@ -2009,11 +2029,11 @@ yyreduce:
 		add_brother_node((yyvsp[-1].ch_node).nd, node1);
 		
 		}
-#line 2013 "pascal_yacc.c" /* yacc.c:1646  */
+#line 2033 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
   case 22:
-#line 679 "pascal_yacc.y" /* yacc.c:1646  */
+#line 702 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//给左边非终结符赋值
 		struct node* cur;
@@ -2027,11 +2047,11 @@ yyreduce:
 		//关系
 		add_son_node((yyval.ch_node).nd, (yyvsp[0].ch_node).nd);
 		}
-#line 2031 "pascal_yacc.c" /* yacc.c:1646  */
+#line 2051 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
   case 23:
-#line 693 "pascal_yacc.y" /* yacc.c:1646  */
+#line 716 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
@@ -2048,11 +2068,11 @@ yyreduce:
 		add_brother_node((yyvsp[-1].ch_node).nd, (yyvsp[0].ch_node).nd);
 
 		}
-#line 2052 "pascal_yacc.c" /* yacc.c:1646  */
+#line 2072 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
   case 24:
-#line 710 "pascal_yacc.y" /* yacc.c:1646  */
+#line 733 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//给左边非终结符赋值
 		struct node* cur;
@@ -2070,37 +2090,46 @@ yyreduce:
 
 
 		}
-#line 2074 "pascal_yacc.c" /* yacc.c:1646  */
+#line 2094 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
   case 25:
-#line 729 "pascal_yacc.y" /* yacc.c:1646  */
+#line 752 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//给左边非终结符赋值
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
 		(yyval.ch_node).nd = cur;
 		
-		BackPatch((yyvsp[0].ch_node).CH, (yyvsp[-1].wbd_node).QUAD);
+		BackPatch((yyvsp[0].ch_node).CH, (yyvsp[-1].ForLoop_node).loop);
 		//此时应无条件返回到循环初始的位置
-		GEN("j", 0, 0, (yyvsp[-1].wbd_node).QUAD);
+		GEN("j", 0, 0, (yyvsp[-1].ForLoop_node).loop);
 		//此时布尔表达式的假出口传递
-		(yyval.ch_node).CH = (yyvsp[-1].wbd_node).CH;
+		(yyval.ch_node).CH = (yyvsp[-1].ForLoop_node).CH;
 
-		set_node_val_str((yyvsp[-1].wbd_node).nd, "IBT");
+		//此时栈顶的break_ch出现
+		/*处理break， continue*/
+		top(&stack_item);  //lushangqi
+		//printf("stack_item->breakch %d\n", stack_item->break_ch);
+		BackPatch(stack_item->break_ch, NXQ);
+		//同时弹出栈顶元素
+		pop();
+
+
+		set_node_val_str((yyvsp[-1].ForLoop_node).nd, "WBD");
 		set_node_val_str((yyvsp[0].ch_node).nd, "Statement");
 		
 		//关系
-		add_son_node((yyval.ch_node).nd, (yyvsp[-1].wbd_node).nd);
-		add_brother_node((yyvsp[-1].wbd_node).nd, (yyvsp[0].ch_node).nd);
+		add_son_node((yyval.ch_node).nd, (yyvsp[-1].ForLoop_node).nd);
+		add_brother_node((yyvsp[-1].ForLoop_node).nd, (yyvsp[0].ch_node).nd);
 
 
 		}
-#line 2100 "pascal_yacc.c" /* yacc.c:1646  */
+#line 2129 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
   case 26:
-#line 751 "pascal_yacc.y" /* yacc.c:1646  */
+#line 783 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//给左边非终结符赋值
 		struct node* cur;
@@ -2112,6 +2141,13 @@ yyreduce:
 		//将bool表达式的假出口上传
 		(yyval.ch_node).CH = (yyvsp[0].Bexp_node).FC;
 
+		//此时栈顶的break_ch出现
+		/*处理break， continue*/
+		top(&stack_item);  //lushangqi
+		BackPatch(stack_item->break_ch, NXQ);
+		//同时弹出栈顶元素
+		pop();
+
 
 		set_node_val_str((yyvsp[-1].ForLoop_node).nd, "DSW");
 		set_node_val_str((yyvsp[0].Bexp_node).nd, "BoolExpr");
@@ -2122,11 +2158,11 @@ yyreduce:
 
 		
 		}
-#line 2126 "pascal_yacc.c" /* yacc.c:1646  */
+#line 2162 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
   case 27:
-#line 773 "pascal_yacc.y" /* yacc.c:1646  */
+#line 812 "pascal_yacc.y" /* yacc.c:1646  */
     {
 
 		//给左边非终结符赋值
@@ -2138,7 +2174,15 @@ yyreduce:
 		//将bool表达式的假真出口上传
 		(yyval.ch_node).CH = (yyvsp[0].Bexp_node).TC;
 
-		set_node_val_str((yyvsp[-1].ForLoop_node).nd, "DSW");
+		//此时栈顶的break_ch出现
+		/*处理break， continue*/
+		top(&stack_item);  //lushangqi
+		BackPatch(stack_item->break_ch, NXQ);
+		//同时弹出栈顶元素
+		pop();
+
+
+		set_node_val_str((yyvsp[-1].ForLoop_node).nd, "RSU");
 		set_node_val_str((yyvsp[0].Bexp_node).nd, "BoolExpr");
 		
 		//关系
@@ -2146,11 +2190,11 @@ yyreduce:
 		add_brother_node((yyvsp[-1].ForLoop_node).nd, (yyvsp[0].Bexp_node).nd);
 		
 		}
-#line 2150 "pascal_yacc.c" /* yacc.c:1646  */
+#line 2194 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
   case 28:
-#line 793 "pascal_yacc.y" /* yacc.c:1646  */
+#line 840 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//printf("compstate in statement\n");
 		//给左边非终结符赋值
@@ -2167,11 +2211,11 @@ yyreduce:
 
 
 		}
-#line 2171 "pascal_yacc.c" /* yacc.c:1646  */
+#line 2215 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
   case 29:
-#line 809 "pascal_yacc.y" /* yacc.c:1646  */
+#line 856 "pascal_yacc.y" /* yacc.c:1646  */
     {
 			
 		//给左边非终结符赋值
@@ -2182,6 +2226,13 @@ yyreduce:
 		//对statement进行回填
 		BackPatch((yyvsp[0].ch_node).CH, NXQ);
 		//控制变量自增的四元式
+
+
+		//此时栈顶的continue_ch出现
+		/*处理break， continue*/
+		top(&stack_item);  //lushangqi
+		BackPatch(stack_item->continue_ch, NXQ);
+
 		GEN("+", (yyvsp[-2].ForLoop_node).place, Entry("1"), (yyvsp[-2].ForLoop_node).place);
 
 		//返回循环起始节点
@@ -2190,6 +2241,14 @@ yyreduce:
 		//传递出口
 		(yyval.ch_node).CH = (yyvsp[-2].ForLoop_node).CH;
 		
+		//此时栈顶的break_ch出现
+		/*处理break， continue*/
+		top(&stack_item);  //lushangqi
+		BackPatch(stack_item->break_ch, NXQ);
+		//同时弹出栈顶元素
+		pop();
+
+
 		struct node* node1;
 		complete_init_node(&node1, "Do");
 
@@ -2203,11 +2262,11 @@ yyreduce:
 		add_brother_node(node1, (yyvsp[0].ch_node).nd);
 
 	    }
-#line 2207 "pascal_yacc.c" /* yacc.c:1646  */
+#line 2266 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
   case 30:
-#line 841 "pascal_yacc.y" /* yacc.c:1646  */
+#line 903 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//给左边非终结符赋值
 		struct node* cur;
@@ -2224,11 +2283,11 @@ yyreduce:
 		add_brother_node((yyvsp[-1].str_node).nd, (yyvsp[0].ch_node).nd);
 	
 	}
-#line 2228 "pascal_yacc.c" /* yacc.c:1646  */
+#line 2287 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
   case 31:
-#line 858 "pascal_yacc.y" /* yacc.c:1646  */
+#line 920 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//给左边非终结符赋值
 		//printf("goto label****\n");
@@ -2270,16 +2329,15 @@ yyreduce:
 		add_son_node((yyval.ch_node).nd, node1);
 		add_brother_node(node1, (yyvsp[0].str_node).nd);
 	}
-#line 2274 "pascal_yacc.c" /* yacc.c:1646  */
+#line 2333 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
   case 32:
-#line 900 "pascal_yacc.y" /* yacc.c:1646  */
+#line 962 "pascal_yacc.y" /* yacc.c:1646  */
     {
 	
 
 	//给左边非终结符赋值
-	printf("****casewithesle statement\n");
 	struct node* cur;
 	complete_init_node(&cur, "NULL");
 	(yyval.ch_node).nd = cur;
@@ -2305,20 +2363,14 @@ yyreduce:
 	GEN("j", 0, 0, LabelList[(yyvsp[-3].case_node).next_id].ADDR);
 	LabelList[(yyvsp[-3].case_node).next_id].ADDR = n;	
 
-	printf("****end1 casewithesle statement\n");
 	
 	//首先对check_id进行回填
 	BackPatch(LabelList[(yyvsp[-3].case_node).check_id].ADDR, NXQ);
-	printf("****end1.5 casewithesle statement\n");
 	//此时要开始生成if else 的四元式
 	for (int i = 1; i < (yyvsp[-3].case_node).L_cnt; i++) {
 		DeQueue(&case_queue, &item);
-		printf("****end1.6 casewithesle statement\n");
-		printf("%d %d\n", item.arg2, item.result);
 		GEN("j=", (yyvsp[-3].case_node).T, item.arg2, LabelList[item.result].ADDR);
-		printf("****end1.7 casewithesle statement\n");
 	}
-	printf("****end2 casewithesle statement\n");
 	DeQueue(&case_queue, &item);
 	GEN("j", 0, 0, LabelList[item.result].ADDR);
 	myDestroyQueue(&case_queue);
@@ -2326,14 +2378,109 @@ yyreduce:
 	//对next进行回填
 	BackPatch(LabelList[(yyvsp[-3].case_node).next_id].ADDR, NXQ);
 
-	printf("****end3 casewithesle statement\n");
 
 }
-#line 2333 "pascal_yacc.c" /* yacc.c:1646  */
+#line 2384 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
   case 33:
-#line 955 "pascal_yacc.y" /* yacc.c:1646  */
+#line 1009 "pascal_yacc.y" /* yacc.c:1646  */
+    {
+		//printf("breakGGG");
+		//给左边非终结符赋值
+		struct node* cur;
+		complete_init_node(&cur, "NULL");
+		(yyval.ch_node).nd = cur;
+		(yyval.ch_node).CH = 0;
+
+		struct node* node1;
+		complete_init_node(&node1, "Break");
+
+		add_son_node((yyval.ch_node).nd, node1);
+
+		//栈为空表明有错
+		if (is_empty()) {
+			//lushangqi!!!!!
+		}
+		top(&stack_item);
+		//四种循环都是直接跳出，且跳出的NXQ都是循环的下边
+		int n = NXQ;
+		if (stack_item == NULL) {
+			puts("NULL!!!");
+		}
+		//printf("breck_ch %d", stack_item->break_ch);
+		
+		GEN("j", 0, 0, 0);
+		stack_item->break_ch = Merge(stack_item->break_ch, n);
+		//printf("breck_ch %d", stack_item->break_ch);
+		//printf("GG:%d", stack_item->break_ch);
+		top(&stack_item);
+		//printf("GG:%d", stack_item->break_ch);
+		//printf("end4GG");
+		
+		
+	}
+#line 2424 "pascal_yacc.c" /* yacc.c:1646  */
+    break;
+
+  case 34:
+#line 1044 "pascal_yacc.y" /* yacc.c:1646  */
+    {
+		//printf("continue statement");
+		//给左边非终结符赋值
+		struct node* cur;
+		complete_init_node(&cur, "NULL");
+		(yyval.ch_node).nd = cur;
+		(yyval.ch_node).CH = 0;
+
+		struct node* node1;
+		complete_init_node(&node1, "Continue");
+
+		add_son_node((yyval.ch_node).nd, node1);
+		//栈为空表明有错
+		if (is_empty()) {
+			//lushangqi!!!!!
+		}
+		top(&stack_item);
+		switch(stack_item->type) {
+			case WHILE:{
+				GEN("j", 0, 0, stack_item->loop);
+				break;
+			}
+			case FOR:{
+				//此时do的continue中loop还没有确定,需要拉链，因为变量需要自增
+				int n = NXQ;
+				GEN("j", 0, 0, 0);
+				stack_item->continue_ch = Merge(stack_item->continue_ch, n);
+				break;
+			}
+			case DO:{
+			    //此时do的continue中loop还没有确定,需要拉链
+				int n = NXQ;
+				GEN("j", 0, 0, 0);
+				stack_item->continue_ch = Merge(stack_item->continue_ch, n);
+				break;
+			}
+			case REPEAT:{
+				 //此时do的continue中loop还没有确定,需要拉链
+				int n = NXQ;
+				GEN("j", 0, 0, 0);
+				stack_item->continue_ch = Merge(stack_item->continue_ch, n);
+				break;
+			}
+			default:{
+				//lushangqi
+				break;
+			}
+		}
+		
+
+	}
+#line 2480 "pascal_yacc.c" /* yacc.c:1646  */
+    break;
+
+  case 35:
+#line 1097 "pascal_yacc.y" /* yacc.c:1646  */
     {   
 		//给左边非终结符赋值
 		//printf("goto label****\n");
@@ -2345,11 +2492,11 @@ yyreduce:
 	//   StateList:	S_L Statement
 	//因为存在上述文法，所以Statement可以为空
 	}
-#line 2349 "pascal_yacc.c" /* yacc.c:1646  */
+#line 2496 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 34:
-#line 968 "pascal_yacc.y" /* yacc.c:1646  */
+  case 36:
+#line 1110 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//给左边非终结符赋值
 		struct node* cur;
@@ -2380,45 +2527,45 @@ yyreduce:
 		add_brother_node((yyvsp[-1].str_node).nd, node1);
 	
 	}
-#line 2384 "pascal_yacc.c" /* yacc.c:1646  */
-    break;
-
-  case 35:
-#line 999 "pascal_yacc.y" /* yacc.c:1646  */
-    {
-		//给左边非终结符赋值
-		struct node* cur;
-		complete_init_node(&cur, "NULL");
-		(yyval.str_node).nd = cur;
-
-		strncpy((yyval.str_node).str, (yyvsp[0].str), sizeof((yyvsp[0].str)));
-		struct node* node1;
-		complete_init_node(&node1, (yyvsp[0].str));
-		//关系
-		add_son_node((yyval.str_node).nd, node1);
-	}
-#line 2401 "pascal_yacc.c" /* yacc.c:1646  */
-    break;
-
-  case 36:
-#line 1012 "pascal_yacc.y" /* yacc.c:1646  */
-    {
-		//给左边非终结符赋值
-		struct node* cur;
-		complete_init_node(&cur, "NULL");
-		(yyval.str_node).nd = cur;
-
-		strncpy((yyval.str_node).str, (yyvsp[0].str), sizeof((yyvsp[0].str)));
-		struct node* node1;
-		complete_init_node(&node1, (yyvsp[0].str));
-		//关系
-		add_son_node((yyval.str_node).nd, node1);
-	}
-#line 2418 "pascal_yacc.c" /* yacc.c:1646  */
+#line 2531 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
   case 37:
-#line 1025 "pascal_yacc.y" /* yacc.c:1646  */
+#line 1141 "pascal_yacc.y" /* yacc.c:1646  */
+    {
+		//给左边非终结符赋值
+		struct node* cur;
+		complete_init_node(&cur, "NULL");
+		(yyval.str_node).nd = cur;
+
+		strncpy((yyval.str_node).str, (yyvsp[0].str), sizeof((yyvsp[0].str)));
+		struct node* node1;
+		complete_init_node(&node1, (yyvsp[0].str));
+		//关系
+		add_son_node((yyval.str_node).nd, node1);
+	}
+#line 2548 "pascal_yacc.c" /* yacc.c:1646  */
+    break;
+
+  case 38:
+#line 1154 "pascal_yacc.y" /* yacc.c:1646  */
+    {
+		//给左边非终结符赋值
+		struct node* cur;
+		complete_init_node(&cur, "NULL");
+		(yyval.str_node).nd = cur;
+
+		strncpy((yyval.str_node).str, (yyvsp[0].str), sizeof((yyvsp[0].str)));
+		struct node* node1;
+		complete_init_node(&node1, (yyvsp[0].str));
+		//关系
+		add_son_node((yyval.str_node).nd, node1);
+	}
+#line 2565 "pascal_yacc.c" /* yacc.c:1646  */
+    break;
+
+  case 39:
+#line 1167 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//给左边非终结符赋值
 		struct node* cur;
@@ -2445,11 +2592,11 @@ yyreduce:
 		add_brother_node(node2, node3);
 		add_brother_node(node3, (yyvsp[0].exp_node).nd);
 }
-#line 2449 "pascal_yacc.c" /* yacc.c:1646  */
+#line 2596 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 38:
-#line 1052 "pascal_yacc.y" /* yacc.c:1646  */
+  case 40:
+#line 1194 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//给左边非终结符赋值
 		struct node* cur;
@@ -2460,6 +2607,15 @@ yyreduce:
 		//传递循环返回点信息，loop指向循环体的第一条四元式
 		(yyval.ForLoop_node).loop = NXQ;
 
+		/*处理break continne */
+		stacknode.loop = (yyval.ForLoop_node).loop;
+		stacknode.type = FOR;
+		stacknode.break_ch = 0;
+		stacknode.continue_ch = 0;
+		push(&stacknode);  //lushangqi   
+		
+		
+		   
 		//此时生成赋值四元式
 		GEN("j<", (yyvsp[-2].ForLoop_node).place, (yyvsp[0].exp_node).place, p+2);
 		//将控制变量所在的位置传递
@@ -2480,11 +2636,11 @@ yyreduce:
 		add_brother_node((yyvsp[-2].ForLoop_node).nd, node1);
 		add_brother_node(node1, (yyvsp[0].exp_node).nd);
 }
-#line 2484 "pascal_yacc.c" /* yacc.c:1646  */
+#line 2640 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 39:
-#line 1085 "pascal_yacc.y" /* yacc.c:1646  */
+  case 41:
+#line 1236 "pascal_yacc.y" /* yacc.c:1646  */
     {
 
 		//printf("Asignstate\n");
@@ -2514,13 +2670,13 @@ yyreduce:
 		add_brother_node((yyvsp[-2].Variable_node).nd, node1);
 		add_brother_node(node1, (yyvsp[0].exp_node).nd);
 		}
-#line 2518 "pascal_yacc.c" /* yacc.c:1646  */
+#line 2674 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 40:
-#line 1116 "pascal_yacc.y" /* yacc.c:1646  */
+  case 42:
+#line 1267 "pascal_yacc.y" /* yacc.c:1646  */
     {
-
+		//printf("ISE begin");
 		//给左边非终结符赋值
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
@@ -2546,11 +2702,11 @@ yyreduce:
 
 
 		}
-#line 2550 "pascal_yacc.c" /* yacc.c:1646  */
+#line 2706 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 41:
-#line 1145 "pascal_yacc.y" /* yacc.c:1646  */
+  case 43:
+#line 1296 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//给左边非终结符赋值
 		struct node* cur;
@@ -2571,61 +2727,69 @@ yyreduce:
 		add_brother_node(node1, (yyvsp[-1].Bexp_node).nd);
 		add_brother_node((yyvsp[-1].Bexp_node).nd, node2);
 		}
-#line 2575 "pascal_yacc.c" /* yacc.c:1646  */
+#line 2731 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 42:
-#line 1168 "pascal_yacc.y" /* yacc.c:1646  */
+  case 44:
+#line 1319 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//给左边非终结符赋值
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
-		(yyval.wbd_node).nd = cur;
+		(yyval.ForLoop_node).nd = cur;
 		//此时下一个四元式，为真出口，所以需要回填
 		BackPatch((yyvsp[-1].Bexp_node).TC, NXQ);
 		//假出口还不确定
-		(yyval.wbd_node).CH = (yyvsp[-1].Bexp_node).FC;
+		(yyval.ForLoop_node).CH = (yyvsp[-1].Bexp_node).FC;
 		//传递起始地址
-		(yyval.wbd_node).QUAD = (yyvsp[-2].ch_node).CH;
+		(yyval.ForLoop_node).loop = (yyvsp[-2].ForLoop_node).CH;
 
-		set_node_val_str((yyvsp[-2].ch_node).nd, "Wh");
+		/*处理break continne */
+		stacknode.loop = (yyval.ForLoop_node).loop;
+		stacknode.type = WHILE;
+		stacknode.break_ch = 0;
+		stacknode.continue_ch = 0;
+		push(&stacknode);  //lushangqi   
+
+
+		set_node_val_str((yyvsp[-2].ForLoop_node).nd, "Wh");
 		set_node_val_str((yyvsp[-1].Bexp_node).nd, "BoolExpr");
 		struct node * node1;
 		complete_init_node(&node1, "Do");
 		//关系
-		add_son_node((yyval.wbd_node).nd, (yyvsp[-2].ch_node).nd);
-		add_brother_node((yyvsp[-2].ch_node).nd, (yyvsp[-1].Bexp_node).nd);
+		add_son_node((yyval.ForLoop_node).nd, (yyvsp[-2].ForLoop_node).nd);
+		add_brother_node((yyvsp[-2].ForLoop_node).nd, (yyvsp[-1].Bexp_node).nd);
 		add_brother_node((yyvsp[-1].Bexp_node).nd, node1);
 
 		}
-#line 2602 "pascal_yacc.c" /* yacc.c:1646  */
+#line 2766 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 43:
-#line 1192 "pascal_yacc.y" /* yacc.c:1646  */
+  case 45:
+#line 1351 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//给左边非终结符赋值
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
-		(yyval.ch_node).nd = cur;
+		(yyval.ForLoop_node).nd = cur;
 		//设置下一个四元式为链
-		(yyval.ch_node).CH = NXQ;
+		(yyval.ForLoop_node).CH = NXQ;
 		struct node* node1;
 		complete_init_node(&node1, "While");
 		//关系
-		add_son_node((yyval.ch_node).nd, node1);
+		add_son_node((yyval.ForLoop_node).nd, node1);
         }
-#line 2619 "pascal_yacc.c" /* yacc.c:1646  */
+#line 2783 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 44:
-#line 1208 "pascal_yacc.y" /* yacc.c:1646  */
+  case 46:
+#line 1367 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//给左边非终结符赋值
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
 		(yyval.exp_node).nd = cur;
-		
+		//printf("Expr+expr");
 		int T = NewTemp();
 		//对于算数操作生成四元式,如果有一个是real就要把int型进行强制转换
 		if ((yyvsp[-2].exp_node).type == INT && (yyvsp[0].exp_node).type == INT)
@@ -2665,11 +2829,11 @@ yyreduce:
 
 
 		}
-#line 2669 "pascal_yacc.c" /* yacc.c:1646  */
+#line 2833 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 45:
-#line 1254 "pascal_yacc.y" /* yacc.c:1646  */
+  case 47:
+#line 1413 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//给左边非终结符赋值
 		struct node* cur;
@@ -2714,11 +2878,11 @@ yyreduce:
 		add_brother_node(node1, (yyvsp[0].exp_node).nd);
 
 		}
-#line 2718 "pascal_yacc.c" /* yacc.c:1646  */
+#line 2882 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 46:
-#line 1300 "pascal_yacc.y" /* yacc.c:1646  */
+  case 48:
+#line 1459 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//给左边非终结符赋值
 		struct node* cur;
@@ -2766,11 +2930,11 @@ yyreduce:
 
 
 		}
-#line 2770 "pascal_yacc.c" /* yacc.c:1646  */
+#line 2934 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 47:
-#line 1348 "pascal_yacc.y" /* yacc.c:1646  */
+  case 49:
+#line 1507 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//给左边非终结符赋值
 		struct node* cur;
@@ -2815,11 +2979,11 @@ yyreduce:
 		add_brother_node(node1, (yyvsp[0].exp_node).nd);
 
 		}
-#line 2819 "pascal_yacc.c" /* yacc.c:1646  */
+#line 2983 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 48:
-#line 1393 "pascal_yacc.y" /* yacc.c:1646  */
+  case 50:
+#line 1552 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//给左边非终结符赋值
 		struct node* cur;
@@ -2846,11 +3010,11 @@ yyreduce:
 
 
 		}
-#line 2850 "pascal_yacc.c" /* yacc.c:1646  */
+#line 3014 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 49:
-#line 1420 "pascal_yacc.y" /* yacc.c:1646  */
+  case 51:
+#line 1579 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//给左边非终结符赋值
 		struct node* cur;
@@ -2873,12 +3037,13 @@ yyreduce:
 
 
 		}
-#line 2877 "pascal_yacc.c" /* yacc.c:1646  */
+#line 3041 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 50:
-#line 1443 "pascal_yacc.y" /* yacc.c:1646  */
+  case 52:
+#line 1602 "pascal_yacc.y" /* yacc.c:1646  */
     {
+			//printf("Variable");
 		//给左边非终结符赋值
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
@@ -2886,16 +3051,17 @@ yyreduce:
 		//将变量在符号表中的类型和位置给表达式
 		// !!!!!!!!!!!!!!!!!!!!!!!!!
 		//!!!!!!!!!!!!!!!!!!!!!!!!!!有问题 lushangqi
-		//$$.type = INT;
-
+		
 		if (!(yyvsp[0].Variable_node).OFFSET) {
 			(yyval.exp_node).place = (yyvsp[0].Variable_node).NO;
+			(yyval.exp_node).type = VarList[(yyvsp[0].Variable_node).NO].type;
 			set_node_val_str((yyvsp[0].Variable_node).nd, "Variable");
 		}
 		else {
 			int T = NewTemp();
 			GEN("=[]", (yyvsp[0].Variable_node).NO, (yyvsp[0].Variable_node).OFFSET, T);
 			(yyval.exp_node).place = T;
+			(yyval.exp_node).type = (yyvsp[0].Variable_node).Array_type;
 			set_node_val_str((yyvsp[0].Variable_node).nd, "VariaArray");
 		}
 
@@ -2903,18 +3069,18 @@ yyreduce:
 		add_son_node((yyval.exp_node).nd, (yyvsp[0].Variable_node).nd);
 
 		}
-#line 2907 "pascal_yacc.c" /* yacc.c:1646  */
+#line 3073 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 51:
-#line 1470 "pascal_yacc.y" /* yacc.c:1646  */
+  case 53:
+#line 1631 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//给左边非终结符赋值
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
 		(yyval.exp_node).nd = cur;
-
-		
+		//lushangqi   上传type
+		(yyval.exp_node).type = (yyvsp[0].exp_node).type;
 
 		set_node_val_str((yyvsp[0].exp_node).nd, "Const");
 		//关系
@@ -2922,12 +3088,13 @@ yyreduce:
 		(yyval.exp_node) = (yyvsp[0].exp_node);
 
 		}
-#line 2926 "pascal_yacc.c" /* yacc.c:1646  */
+#line 3092 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 52:
-#line 1489 "pascal_yacc.y" /* yacc.c:1646  */
+  case 54:
+#line 1650 "pascal_yacc.y" /* yacc.c:1646  */
     {
+			//printf("Bool op Bool\n");
 		//给左边非终结符赋值
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
@@ -2954,11 +3121,11 @@ yyreduce:
 		add_brother_node((yyvsp[-1].rop_node).nd, (yyvsp[0].exp_node).nd);
 
 		}
-#line 2958 "pascal_yacc.c" /* yacc.c:1646  */
+#line 3125 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 53:
-#line 1517 "pascal_yacc.y" /* yacc.c:1646  */
+  case 55:
+#line 1679 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//给左边非终结符赋值
 		struct node* cur;
@@ -2976,11 +3143,11 @@ yyreduce:
 		add_son_node((yyval.Bexp_node).nd, (yyvsp[-1].Bexp_node).nd);
 		add_brother_node((yyvsp[-1].Bexp_node).nd, (yyvsp[0].Bexp_node).nd);
 		}
-#line 2980 "pascal_yacc.c" /* yacc.c:1646  */
+#line 3147 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 54:
-#line 1535 "pascal_yacc.y" /* yacc.c:1646  */
+  case 56:
+#line 1697 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//给左边非终结符赋值
 		struct node* cur;
@@ -2998,11 +3165,11 @@ yyreduce:
 		add_son_node((yyval.Bexp_node).nd, (yyvsp[-1].Bexp_node).nd);
 		add_brother_node((yyvsp[-1].Bexp_node).nd, (yyvsp[0].Bexp_node).nd);
 		}
-#line 3002 "pascal_yacc.c" /* yacc.c:1646  */
+#line 3169 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 55:
-#line 1553 "pascal_yacc.y" /* yacc.c:1646  */
+  case 57:
+#line 1715 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//给左边非终结符赋值
 		struct node* cur;
@@ -3023,11 +3190,11 @@ yyreduce:
 		add_brother_node(node1, (yyvsp[0].Bexp_node).nd);
 		
 		}
-#line 3027 "pascal_yacc.c" /* yacc.c:1646  */
+#line 3194 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 56:
-#line 1574 "pascal_yacc.y" /* yacc.c:1646  */
+  case 58:
+#line 1736 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//给左边非终结符赋值
 		struct node* cur;
@@ -3049,57 +3216,57 @@ yyreduce:
 		add_brother_node(node1, (yyvsp[-1].Bexp_node).nd);
 		add_brother_node((yyvsp[-1].Bexp_node).nd, node2);
 		}
-#line 3053 "pascal_yacc.c" /* yacc.c:1646  */
-    break;
-
-  case 57:
-#line 1596 "pascal_yacc.y" /* yacc.c:1646  */
-    {
-		//给左边非终结符赋值
-		struct node* cur;
-		complete_init_node(&cur, "NULL");
-		(yyval.Bexp_node).nd = cur;
-		//传递 真和假出口
-		(yyval.Bexp_node).TC = NXQ;
-		(yyval.Bexp_node).FC = NXQ+1;
-		
-		GEN("jnz",Entry((yyvsp[0].str)),0,0);
-		GEN("j",0,0,0);
-
-		struct node*node1;
-		complete_init_node(&node1, (yyvsp[0].str));
-		//关系
-		add_son_node((yyval.Bexp_node).nd, node1);
-		
-		}
-#line 3076 "pascal_yacc.c" /* yacc.c:1646  */
-    break;
-
-  case 58:
-#line 1615 "pascal_yacc.y" /* yacc.c:1646  */
-    {
-		//给左边非终结符赋值
-		struct node* cur;
-		complete_init_node(&cur, "NULL");
-		(yyval.Bexp_node).nd = cur;
-		//传递 真和假出口
-		(yyval.Bexp_node).TC = NXQ;
-		(yyval.Bexp_node).FC = NXQ+1;
-		
-		GEN("jnz",Entry((yyvsp[0].str)),0,0);
-		GEN("j",0,0,0);
-
-		struct node*node1;
-		complete_init_node(&node1, (yyvsp[0].str));
-		//关系
-		add_son_node((yyval.Bexp_node).nd, node1);
-		
-		}
-#line 3099 "pascal_yacc.c" /* yacc.c:1646  */
+#line 3220 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
   case 59:
-#line 1636 "pascal_yacc.y" /* yacc.c:1646  */
+#line 1758 "pascal_yacc.y" /* yacc.c:1646  */
+    {
+			//给左边非终结符赋值
+			struct node* cur;
+			complete_init_node(&cur, "NULL");
+			(yyval.Bexp_node).nd = cur;
+			//传递 真和假出口
+			(yyval.Bexp_node).TC = NXQ;
+			(yyval.Bexp_node).FC = NXQ + 1;
+
+			GEN("jnz", Entry((yyvsp[0].str)), 0, 0);
+			GEN("j", 0, 0, 0);
+
+			struct node*node1;
+			complete_init_node(&node1, (yyvsp[0].str));
+			//关系
+			add_son_node((yyval.Bexp_node).nd, node1);
+
+		}
+#line 3243 "pascal_yacc.c" /* yacc.c:1646  */
+    break;
+
+  case 60:
+#line 1777 "pascal_yacc.y" /* yacc.c:1646  */
+    {
+			//给左边非终结符赋值
+			struct node* cur;
+			complete_init_node(&cur, "NULL");
+			(yyval.Bexp_node).nd = cur;
+			//传递 真和假出口
+			(yyval.Bexp_node).TC = NXQ;
+			(yyval.Bexp_node).FC = NXQ + 1;
+
+			GEN("jnz", Entry((yyvsp[0].str)), 0, 0);
+			GEN("j", 0, 0, 0);
+
+			struct node*node1;
+			complete_init_node(&node1, (yyvsp[0].str));
+			//关系
+			add_son_node((yyval.Bexp_node).nd, node1);
+
+		}
+#line 3266 "pascal_yacc.c" /* yacc.c:1646  */
+    break;
+
+  case 61:
+#line 1798 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//给左边非终结符赋值
 		struct node* cur;
@@ -3121,11 +3288,11 @@ yyreduce:
 		add_brother_node((yyvsp[-1].Bexp_node).nd, node1);
 		
 }
-#line 3125 "pascal_yacc.c" /* yacc.c:1646  */
+#line 3292 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 60:
-#line 1659 "pascal_yacc.y" /* yacc.c:1646  */
+  case 62:
+#line 1821 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//给左边非终结符赋值
 		struct node* cur;
@@ -3149,15 +3316,14 @@ yyreduce:
 		add_brother_node((yyvsp[-1].Bexp_node).nd, node1);
 
 }
-#line 3153 "pascal_yacc.c" /* yacc.c:1646  */
+#line 3320 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 61:
-#line 1688 "pascal_yacc.y" /* yacc.c:1646  */
+  case 63:
+#line 1850 "pascal_yacc.y" /* yacc.c:1646  */
     {
 	
 	//给左边非终结符赋值
-	printf("test casewithelse****\n");
 	struct node* cur;
 	complete_init_node(&cur, "NULL");
 	(yyval.case_node).nd = cur;
@@ -3192,11 +3358,11 @@ yyreduce:
 	LabelList[L_id].ADDR = NXQ;
 
 }
-#line 3196 "pascal_yacc.c" /* yacc.c:1646  */
+#line 3362 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 62:
-#line 1728 "pascal_yacc.y" /* yacc.c:1646  */
+  case 64:
+#line 1889 "pascal_yacc.y" /* yacc.c:1646  */
     {
 
 	//给左边非终结符赋值
@@ -3229,13 +3395,13 @@ yyreduce:
 	LabelList[(yyval.case_node).next_id].ADDR = n;	
 
 }
-#line 3233 "pascal_yacc.c" /* yacc.c:1646  */
+#line 3399 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 63:
-#line 1762 "pascal_yacc.y" /* yacc.c:1646  */
+  case 65:
+#line 1923 "pascal_yacc.y" /* yacc.c:1646  */
     {
-	printf("test CaseWithconst");
+	//printf("test CaseWithconst");
 
 	//给左边非终结符赋值
 	struct node* cur;
@@ -3264,7 +3430,6 @@ yyreduce:
 	item.arg2 = Entry((yyvsp[-1].str_node).str);
 	item.result = L_id;
 	EnQueue(&case_queue, item);
-	printf("end3 test CaseWithconst");
 
 	(yyval.case_node).check_id = (yyvsp[-2].case_node).check_id;
 	(yyval.case_node).next_id = (yyvsp[-2].case_node).next_id;
@@ -3276,11 +3441,11 @@ yyreduce:
 	
 
 }
-#line 3280 "pascal_yacc.c" /* yacc.c:1646  */
+#line 3445 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 64:
-#line 1805 "pascal_yacc.y" /* yacc.c:1646  */
+  case 66:
+#line 1965 "pascal_yacc.y" /* yacc.c:1646  */
     {
 
 	//给左边非终结符赋值
@@ -3320,13 +3485,13 @@ yyreduce:
 	LabelList[L_id].ADDR = NXQ;
 
 }
-#line 3324 "pascal_yacc.c" /* yacc.c:1646  */
+#line 3489 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 65:
-#line 1845 "pascal_yacc.y" /* yacc.c:1646  */
+  case 67:
+#line 2005 "pascal_yacc.y" /* yacc.c:1646  */
     {
-	printf("test Case start");
+	//printf("test Case start");
 	//给左边非终结符赋值
 	struct node* cur;
 	complete_init_node(&cur, "NULL");
@@ -3362,11 +3527,11 @@ yyreduce:
 	//
 	InitQueue(&case_queue);
 }
-#line 3366 "pascal_yacc.c" /* yacc.c:1646  */
+#line 3531 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 66:
-#line 1882 "pascal_yacc.y" /* yacc.c:1646  */
+  case 68:
+#line 2042 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//给左边非终结符赋值
 		struct node* cur;
@@ -3379,11 +3544,11 @@ yyreduce:
 		//关系
 		add_son_node((yyval.str_node).nd, node1);
 	  }
-#line 3383 "pascal_yacc.c" /* yacc.c:1646  */
+#line 3548 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 67:
-#line 1894 "pascal_yacc.y" /* yacc.c:1646  */
+  case 69:
+#line 2054 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//给左边非终结符赋值
 		struct node* cur;
@@ -3396,11 +3561,11 @@ yyreduce:
 		//关系
 		add_son_node((yyval.str_node).nd, node1);
 	}
-#line 3400 "pascal_yacc.c" /* yacc.c:1646  */
+#line 3565 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 68:
-#line 1908 "pascal_yacc.y" /* yacc.c:1646  */
+  case 70:
+#line 2068 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//给左边非终结符赋值
 			struct node* cur;
@@ -3419,7 +3584,7 @@ yyreduce:
 			_itoa(d, name,10);
 			//GEN(":=",Entry(name), 0, T1);
 			int d_place = Entry(name);
-			puts(name);
+			//puts(name);
 			GEN("*", (yyvsp[-2].ExprList_node).tmp_place, d_place, T1);
 			GEN("+", (yyvsp[0].exp_node).place, T1, T1);
 
@@ -3444,11 +3609,11 @@ yyreduce:
 
 
 		}
-#line 3448 "pascal_yacc.c" /* yacc.c:1646  */
+#line 3613 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 69:
-#line 1952 "pascal_yacc.y" /* yacc.c:1646  */
+  case 71:
+#line 2112 "pascal_yacc.y" /* yacc.c:1646  */
     {
 			//给左边非终结符赋值
 			struct node* cur;
@@ -3475,11 +3640,11 @@ yyreduce:
 			add_brother_node(node1, node2);
 			add_brother_node(node2, (yyvsp[0].exp_node).nd);
 		}
-#line 3479 "pascal_yacc.c" /* yacc.c:1646  */
+#line 3644 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 70:
-#line 1980 "pascal_yacc.y" /* yacc.c:1646  */
+  case 72:
+#line 2140 "pascal_yacc.y" /* yacc.c:1646  */
     { 
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
@@ -3496,11 +3661,11 @@ yyreduce:
 		add_son_node((yyval.Variable_node).nd, node1);
 			
 		}
-#line 3500 "pascal_yacc.c" /* yacc.c:1646  */
+#line 3665 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 71:
-#line 1997 "pascal_yacc.y" /* yacc.c:1646  */
+  case 73:
+#line 2157 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
@@ -3510,10 +3675,14 @@ yyreduce:
 		int T = NewTemp();
 		C = Access_C((yyvsp[-1].ExprList_node).NO);
 		a = Access_a((yyvsp[-1].ExprList_node).NO);
-
+		//printf("**%d**", C);
+		char tmp_C[20], tmp_a[20];
+		_itoa(C,tmp_C, 10);
+		_itoa(a,tmp_a, 10);
 		//产生a - C的代码
-		GEN("-", a, C, T);
-
+		GEN("-", Entry(tmp_a), Entry(tmp_C), T);
+		//传递数组名的下标
+		(yyval.Variable_node).Array_type = VarList[(yyvsp[-1].ExprList_node).NO].Iv;
 		(yyval.Variable_node).NO = T;
 		(yyval.Variable_node).OFFSET = (yyvsp[-1].ExprList_node).tmp_place;
 
@@ -3521,11 +3690,11 @@ yyreduce:
 
 	
 		}
-#line 3525 "pascal_yacc.c" /* yacc.c:1646  */
+#line 3694 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 72:
-#line 2019 "pascal_yacc.y" /* yacc.c:1646  */
+  case 74:
+#line 2183 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
@@ -3542,11 +3711,11 @@ yyreduce:
 		//关系
 		add_son_node((yyval.exp_node).nd, node1);
 		}
-#line 3546 "pascal_yacc.c" /* yacc.c:1646  */
+#line 3715 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 73:
-#line 2036 "pascal_yacc.y" /* yacc.c:1646  */
+  case 75:
+#line 2200 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//printf("")
 		struct node* cur;
@@ -3565,11 +3734,11 @@ yyreduce:
 		//关系
 		add_son_node((yyval.exp_node).nd, node1);
 		}
-#line 3569 "pascal_yacc.c" /* yacc.c:1646  */
+#line 3738 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 74:
-#line 2056 "pascal_yacc.y" /* yacc.c:1646  */
+  case 76:
+#line 2220 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//给左边非终结符赋值
 		struct node* cur;
@@ -3583,11 +3752,11 @@ yyreduce:
 		//关系
 		add_son_node((yyval.rop_node).nd, node1);
 		}
-#line 3587 "pascal_yacc.c" /* yacc.c:1646  */
+#line 3756 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 75:
-#line 2070 "pascal_yacc.y" /* yacc.c:1646  */
+  case 77:
+#line 2234 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//给左边非终结符赋值
 		struct node* cur;
@@ -3602,11 +3771,11 @@ yyreduce:
 		add_son_node((yyval.rop_node).nd, node1);
 
 		}
-#line 3606 "pascal_yacc.c" /* yacc.c:1646  */
+#line 3775 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 76:
-#line 2085 "pascal_yacc.y" /* yacc.c:1646  */
+  case 78:
+#line 2249 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//给左边非终结符赋值
 		struct node* cur;
@@ -3620,11 +3789,11 @@ yyreduce:
 		//关系
 		add_son_node((yyval.rop_node).nd, node1);
 		}
-#line 3624 "pascal_yacc.c" /* yacc.c:1646  */
+#line 3793 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 77:
-#line 2099 "pascal_yacc.y" /* yacc.c:1646  */
+  case 79:
+#line 2263 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//给左边非终结符赋值
 		struct node* cur;
@@ -3638,11 +3807,11 @@ yyreduce:
 		//关系
 		add_son_node((yyval.rop_node).nd, node1);
 		}
-#line 3642 "pascal_yacc.c" /* yacc.c:1646  */
+#line 3811 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 78:
-#line 2113 "pascal_yacc.y" /* yacc.c:1646  */
+  case 80:
+#line 2277 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//给左边非终结符赋值
 		struct node* cur;
@@ -3656,11 +3825,11 @@ yyreduce:
 		//关系
 		add_son_node((yyval.rop_node).nd, node1);
 		}
-#line 3660 "pascal_yacc.c" /* yacc.c:1646  */
+#line 3829 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 79:
-#line 2127 "pascal_yacc.y" /* yacc.c:1646  */
+  case 81:
+#line 2291 "pascal_yacc.y" /* yacc.c:1646  */
     {
 		//给左边非终结符赋值
 		struct node* cur;
@@ -3674,11 +3843,11 @@ yyreduce:
 		//关系
 		add_son_node((yyval.rop_node).nd, node1);
 		}
-#line 3678 "pascal_yacc.c" /* yacc.c:1646  */
+#line 3847 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 80:
-#line 2143 "pascal_yacc.y" /* yacc.c:1646  */
+  case 82:
+#line 2307 "pascal_yacc.y" /* yacc.c:1646  */
     {
 	//给左边非终结符赋值
 	struct node* cur;
@@ -3686,6 +3855,13 @@ yyreduce:
 	(yyval.ForLoop_node).nd = cur;
 	//下一个四元式是循环起始位置
 	(yyval.ForLoop_node).loop = NXQ;
+	
+	/*处理break continne */
+	stacknode.loop = 0;
+	stacknode.type = DO;
+	stacknode.break_ch = 0;
+	stacknode.continue_ch = 0;
+	push(&stacknode);  //lushangqi   
 
 	//初始化右值
 	struct node *node1;
@@ -3694,11 +3870,11 @@ yyreduce:
 	add_son_node((yyval.ForLoop_node).nd, node1);
 
 }
-#line 3698 "pascal_yacc.c" /* yacc.c:1646  */
+#line 3874 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 81:
-#line 2160 "pascal_yacc.y" /* yacc.c:1646  */
+  case 83:
+#line 2331 "pascal_yacc.y" /* yacc.c:1646  */
     {
 	//给左边非终结符赋值
 	struct node* cur;
@@ -3709,6 +3885,12 @@ yyreduce:
 	(yyval.ForLoop_node).loop = (yyvsp[-2].ForLoop_node).loop;
 	//同时由与bool表达式语句出现，因此回填出口
 	BackPatch((yyvsp[-1].ch_node).CH, NXQ);
+
+	/*处理break， continue*/
+	//此时真正应该判断的语句出现
+	top(&stack_item);  //lushangqi
+	BackPatch(stack_item->continue_ch, NXQ);
+
 
 	//初始化右值
 	struct node*node1;
@@ -3723,11 +3905,11 @@ yyreduce:
 	add_brother_node((yyvsp[-1].ch_node).nd, node1);
 
 }
-#line 3727 "pascal_yacc.c" /* yacc.c:1646  */
+#line 3909 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 82:
-#line 2189 "pascal_yacc.y" /* yacc.c:1646  */
+  case 84:
+#line 2366 "pascal_yacc.y" /* yacc.c:1646  */
     {
 	//给左边非终结符赋值
 	struct node* cur;
@@ -3736,17 +3918,24 @@ yyreduce:
 	//下一个四元式是循环起始位置
 	(yyval.ForLoop_node).loop = NXQ;
 
+	/*处理break continne */
+	stacknode.loop = 0;
+	stacknode.type = REPEAT;
+	stacknode.break_ch = 0;
+	stacknode.continue_ch = 0;
+	push(&stacknode);  //lushangqi    
+
 	//初始化右值
 	struct node *node1;
 	complete_init_node(&node1, "Repeat");
 	//关系
 	add_son_node((yyval.ForLoop_node).nd, node1);
 }
-#line 3746 "pascal_yacc.c" /* yacc.c:1646  */
+#line 3935 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
-  case 83:
-#line 2205 "pascal_yacc.y" /* yacc.c:1646  */
+  case 85:
+#line 2389 "pascal_yacc.y" /* yacc.c:1646  */
     {
 	//给左边非终结符赋值
 	struct node* cur;
@@ -3757,6 +3946,12 @@ yyreduce:
 	(yyval.ForLoop_node).loop = (yyvsp[-2].ForLoop_node).loop;
 	//同时由与bool表达式语句出现，因此回填出口
 	BackPatch((yyvsp[-1].ch_node).CH, NXQ);
+
+
+	/*处理break， continue*/
+	//此时真正应该判断的语句出现
+	top(&stack_item);  //lushangqi
+	BackPatch(stack_item->continue_ch, NXQ);
 
 	//初始化右值
 	struct node*node1;
@@ -3770,11 +3965,11 @@ yyreduce:
 	add_brother_node((yyvsp[-2].ForLoop_node).nd, (yyvsp[-1].ch_node).nd);
 	add_brother_node((yyvsp[-1].ch_node).nd, node1);
 }
-#line 3774 "pascal_yacc.c" /* yacc.c:1646  */
+#line 3969 "pascal_yacc.c" /* yacc.c:1646  */
     break;
 
 
-#line 3778 "pascal_yacc.c" /* yacc.c:1646  */
+#line 3973 "pascal_yacc.c" /* yacc.c:1646  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -4002,11 +4197,31 @@ yyreturn:
 #endif
   return yyresult;
 }
-#line 2230 "pascal_yacc.y" /* yacc.c:1906  */
+#line 2420 "pascal_yacc.y" /* yacc.c:1906  */
 
 
 int yyerror(char *errstr)
-{
-	printf("Line: %d Reason:%s\n", line_number, errstr);
+{ 
+	printf("\n\n Error: ");
+	printf("Line: %d Reason: ", line_number);
+	switch(error_number) {
+		case REDEFINE_ARRAY :{
+			printf("Array %s is redefined!\n", errstr);
+			break;
+		}
+		case REDEFINE_SIM_VAR :{
+			printf("Simple Var %s is redefined!\n", errstr);
+			break;
+		}
+		case UNDEFINE_VAR :{
+		    printf("Var %s is not defined!\n", errstr);
+			break;
+		}
+		default :{
+			printf("%s\n", errstr);
+			break;
+		}	
+	}
+	exit(-1);
 	return 0;
 }

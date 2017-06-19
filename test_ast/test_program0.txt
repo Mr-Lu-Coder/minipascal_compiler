@@ -2,5 +2,6 @@ Program a;
 Var i,j:integer;
     
 Begin
+    {多个声明，赋值}
     i:=59;
 End.

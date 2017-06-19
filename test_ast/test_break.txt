@@ -1,0 +1,35 @@
+Program a;
+Var i,j,k:integer;
+Begin
+    {
+    while j do
+    begin
+    k := 4+5;
+    if k = j then continue;
+    else break;
+    end;
+   }
+   {
+    for i:=1 to 4 do
+    begin
+    k := 4+5;
+    if k = j then continue
+    else break;
+    end;
+   }
+
+   Do 
+    begin
+    k := 4+5;
+    if k = j then continue
+    else break;
+    repeat
+    begin
+       i:=i+1;
+       if i > 5 then break;
+    end
+    until i >= 10;	
+    end
+   while j >= 4;
+
+End.

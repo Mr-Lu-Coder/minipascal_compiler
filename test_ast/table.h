@@ -34,6 +34,7 @@ extern array_variable TypeList[TABLE_MAX_VAR_NUM];
 
 extern label_variable LabelList[TABLE_MAX_VAR_NUM];
 
+extern int VarFlag;
 
 //Êä³ö·ûºÅ±í
 void OutputVarList(void);

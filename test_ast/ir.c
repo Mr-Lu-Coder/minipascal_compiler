@@ -3,9 +3,9 @@
 #include "ir.h"
 #include "table.h"
 /* used to indicate the number of next Quater
-从1开始，因为回填的时候是到0结束，不过感觉和这个没关系
+从1开始，因为回填的时候是到0结束，不过感觉和这个没关系,方便检查
 */
-int NXQ = 0;  
+int NXQ = 1;  
 
 ir_quarter_expression QuaterList[MAX_IR_EXP_NUM];
 
@@ -18,7 +18,7 @@ void OutputQuaterList(void)
 		return;
 	}
 
-	for (i = 0; i < NXQ; i++) {
+	for (i = 1; i <= NXQ; i++) {
 
 		printf("(%3d) ( %5s, ", i, QuaterList[i].op);
 		if (QuaterList[i].arg1)
