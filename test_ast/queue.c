@@ -7,6 +7,7 @@ void InitQueue(LinkQueue *Q)
 { /* 构造一个空队列Q */
 	Q->front = Q->rear = (QueuePtr)malloc(sizeof(QNode));
 	if (!Q->front)
+		printf("malloc error\n");
 	Q->front->next = NULL;
 }
 void myDestroyQueue(LinkQueue *Q)
@@ -67,9 +68,9 @@ int DeQueue(LinkQueue *Q, QElemType *e)
 	QueuePtr p;
 	if (Q->front == Q->rear)
 		return FALSE;
-	p = Q->front; /* 指向头结点 */
+	p = Q->front->next; /* 指向头结点 */
 	*e = p->data;
-	Q->front = p->next; /* 摘下头节点 */
+	Q->front->next = p->next; /* 摘下头节点 */
 	if (Q->rear == p)
 		Q->rear = Q->front;
 	free(p);

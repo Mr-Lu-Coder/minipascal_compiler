@@ -17,7 +17,7 @@ int yyerror(char*);
 #define INT 0
 #define REAL 1
 #define ARRAY 2
-LinkQueue *case_queue;
+LinkQueue case_queue;
 QElemType item;
 
 %}
@@ -896,20 +896,21 @@ Statement:	AsignState
 		add_son_node($$.nd, node1);
 		add_brother_node(node1, $2.nd);
 	}
-	|CaseWithElse Statement End
+	|CaseWithElse Statement ';' End
 {
 	
 
 	//给左边非终结符赋值
-	//printf("goto label****\n");
+	printf("****casewithesle statement\n");
 	struct node* cur;
 	complete_init_node(&cur, "NULL");
 	$$.nd = cur;
 	$$.CH = 0;
 
 
-	struct node* node1;
-	complete_init_node(&node1, "End");
+	struct node* node1, *node2;
+	complete_init_node(&node1, ";");
+	complete_init_node(&node2, "End");
 
 	set_node_val_str($1.nd, "CaseWithElse");
 	set_node_val_str($2.nd, "Statement");
@@ -917,6 +918,7 @@ Statement:	AsignState
 	add_son_node($$.nd, $1.nd);
 	add_brother_node($1.nd, $2.nd);
 	add_brother_node($2.nd, node1);
+	add_brother_node(node1, node2);
 
 	//内部逻辑
 	//statement 结束后  goto next
@@ -925,22 +927,28 @@ Statement:	AsignState
 	GEN("j", 0, 0, LabelList[$1.next_id].ADDR);
 	LabelList[$1.next_id].ADDR = n;	
 
-
+	printf("****end1 casewithesle statement\n");
 	
 	//首先对check_id进行回填
 	BackPatch(LabelList[$1.check_id].ADDR, NXQ);
-
+	printf("****end1.5 casewithesle statement\n");
 	//此时要开始生成if else 的四元式
 	for (int i = 1; i < $1.L_cnt; i++) {
-		DeQueue(case_queue, &item);
-		GEN("case", $1.T, item.arg2, LabelList[item.result].ADDR);
+		DeQueue(&case_queue, &item);
+		printf("****end1.6 casewithesle statement\n");
+		printf("%d %d\n", item.arg2, item.result);
+		GEN("j=", $1.T, item.arg2, LabelList[item.result].ADDR);
+		printf("****end1.7 casewithesle statement\n");
 	}
-	DeQueue(case_queue, &item);
+	printf("****end2 casewithesle statement\n");
+	DeQueue(&case_queue, &item);
 	GEN("j", 0, 0, LabelList[item.result].ADDR);
-	myDestroyQueue(case_queue);
+	myDestroyQueue(&case_queue);
 	
 	//对next进行回填
 	BackPatch(LabelList[$1.next_id].ADDR, NXQ);
+
+	printf("****end3 casewithesle statement\n");
 
 };
 	|
@@ -1680,7 +1688,7 @@ CaseWithElse: InCase Else
 {
 	
 	//给左边非终结符赋值
-	//printf("goto label****\n");
+	printf("test casewithelse****\n");
 	struct node* cur;
 	complete_init_node(&cur, "NULL");
 	$$.nd = cur;
@@ -1702,7 +1710,7 @@ CaseWithElse: InCase Else
 	item.arg2 = 0;
 	
 	item.result = L_id;
-	EnQueue(case_queue, item);
+	EnQueue(&case_queue, item);
 	
 	
 	$$.check_id = $1.check_id;
@@ -1731,7 +1739,7 @@ InCase : CaseWithConst Statement  ';'
 	set_node_val_str($2.nd, "Statement");
 	//关系
 	add_son_node($$.nd, $1.nd);
-	add_son_node($1.nd, $2.nd);
+	add_brother_node($1.nd, $2.nd);
 	add_brother_node($2.nd, node1);
 
 
@@ -1750,8 +1758,9 @@ InCase : CaseWithConst Statement  ';'
 
 }
 
-CaseWithConst : CaseStart case_const ';'
+CaseWithConst : CaseStart case_const ':'
 {
+	printf("test CaseWithconst");
 
 	//给左边非终结符赋值
 	struct node* cur;
@@ -1760,12 +1769,12 @@ CaseWithConst : CaseStart case_const ';'
 	
 
 	struct node* node1;
-	complete_init_node(&node1, ";");
+	complete_init_node(&node1, ":");
 	set_node_val_str($1.nd, "CaseStart");
 	set_node_val_str($2.nd, "case_const");
 	//关系
 	add_son_node($$.nd, $1.nd);
-	add_son_node($1.nd, $2.nd);
+	add_brother_node($1.nd, $2.nd);
 	add_brother_node($2.nd, node1);
 
 
@@ -1779,8 +1788,8 @@ CaseWithConst : CaseStart case_const ';'
 	//进队列
 	item.arg2 = Entry($2.str);
 	item.result = L_id;
-	EnQueue(case_queue, item);
-
+	EnQueue(&case_queue, item);
+	printf("end3 test CaseWithconst");
 
 	$$.check_id = $1.check_id;
 	$$.next_id = $1.next_id;
@@ -1789,9 +1798,10 @@ CaseWithConst : CaseStart case_const ';'
 	//定义L label.
 	LabelList[L_id].DEF = 1;
 	LabelList[L_id].ADDR = NXQ;
+	
 
 }
-| InCase case_const ';'
+| InCase case_const ':'
 {
 
 	//给左边非终结符赋值
@@ -1801,12 +1811,12 @@ CaseWithConst : CaseStart case_const ';'
 	
 
 	struct node* node1;
-	complete_init_node(&node1, ";");
+	complete_init_node(&node1, ":");
 	set_node_val_str($1.nd, "InCase");
 	set_node_val_str($2.nd, "case_const");
 	//关系
 	add_son_node($$.nd, $1.nd);
-	add_son_node($1.nd, $2.nd);
+	add_brother_node($1.nd, $2.nd);
 	add_brother_node($2.nd, node1);
 
 
@@ -1818,7 +1828,7 @@ CaseWithConst : CaseStart case_const ';'
 	//进队列
 	item.arg2 = Entry($2.str);
 	item.result = L_id;
-	EnQueue(case_queue, item);
+	EnQueue(&case_queue, item);
 
 	$$.check_id = $1.check_id;
 	$$.next_id = $1.next_id;
@@ -1833,6 +1843,7 @@ CaseWithConst : CaseStart case_const ';'
 }
 CaseStart : Case Expr Of
 {
+	printf("test Case start");
 	//给左边非终结符赋值
 	struct node* cur;
 	complete_init_node(&cur, "NULL");
@@ -1845,7 +1856,7 @@ CaseStart : Case Expr Of
 	set_node_val_str($2.nd, "Expr");
 	//关系
 	add_son_node($$.nd, node1);
-	add_son_node(node1, $2.nd);
+	add_brother_node(node1, $2.nd);
 	add_brother_node($2.nd, node2);
 	
 	//生成check Label 和next label  该label未出现过
@@ -1866,7 +1877,7 @@ CaseStart : Case Expr Of
 
 	//初始化队列
 	//
-	void InitQueue(case_queue);
+	InitQueue(&case_queue);
 }
 case_const: IntNo{
 		//给左边非终结符赋值
@@ -2220,6 +2231,6 @@ RSU: RE Statement Until
 
 int yyerror(char *errstr)
 {
-	printf("Line: %d Reason:%s %d\n", line_number, errstr);
+	printf("Line: %d Reason:%s\n", line_number, errstr);
 	return 0;
 }
