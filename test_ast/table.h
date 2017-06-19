@@ -83,5 +83,12 @@ int LookUpLabel(char *Name);
 //回填Label拉链
 void BackLabelPatch(int p, int t);
 
+//获取L开头的标签
+int GetLLabel();
+//获取Next开头的label
+int GetNextLabel();
+//获取check开头的label
+int GetCheckLabel();
+
 #endif
 

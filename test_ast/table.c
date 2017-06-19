@@ -120,6 +120,7 @@ int Enter(char *Name)
 	VarCount++;
 	if (VarCount > TABLE_MAX_VAR_NUM) {
 		printf("There is no enough space!\n");
+		return 0;
 	}
 	strncpy(VarList[VarCount].name, Name, sizeof(Name));
 	VarList[VarCount].addr = 0;
@@ -278,6 +279,7 @@ int EnterLabel(char *Name)
 	LabelCount++;
 	if (LabelCount > TABLE_MAX_VAR_NUM) {
 		printf("There is no enough space!\n");
+		return 0;
 	}
 	strncpy(LabelList[LabelCount].name, Name, sizeof(Name));
 	LabelList[LabelCount].ADDR = 0;
@@ -299,9 +301,18 @@ int LookUpLabel(char *Name)
 
 }
 
-
+/*
 void BackLabelPatch(int p, int t)
 {
+	int q = p;
+	printf("%d %d", p, t);
+	while (q) {
+		int q1 = LabelList[q].ADDR;
+		QuaterList[q].result = t;
+		q = q1;
+	}
+
+	return;
 	int q = p;
 	//printf("%d %d %d", q, VarList[q].addr, t);
 	while (q) {
@@ -310,4 +321,48 @@ void BackLabelPatch(int p, int t)
 		q = LabelList[q].ADDR;
 		LabelList[tmp].ADDR = t;
 	}
+}
+
+*/
+/****************************************
+关于Case 语句中  label的处理
+****************************************/
+int GetCheckLabel()
+{
+	char name[TABLE_MAX_IDENT_NAME_LEN];
+	for (int i = 1; i < TABLE_MAX_VAR_NUM; i++) {
+		sprintf(name, "check%d", i);
+		if (0 == LookUpLabel(name)) {
+			return EnterLabel(name);
+		}
+	}
+	printf("There is no enough space!");
+	return 0;
+}
+
+
+int GetNextLabel()
+{
+	char name[TABLE_MAX_IDENT_NAME_LEN];
+	for (int i = 1; i < TABLE_MAX_VAR_NUM; i++) {
+		sprintf(name, "next%d", i);
+		if (0 == LookUpLabel(name)) {
+			return EnterLabel(name);
+		}
+	}
+	printf("There is no enough space!");
+	return 0;
+}
+
+int GetLLabel()
+{
+	char name[TABLE_MAX_IDENT_NAME_LEN];
+	for (int i = 1; i < TABLE_MAX_VAR_NUM; i++) {
+		sprintf(name, "L%d", i);
+		if (0 == LookUpLabel(name)) {
+			return EnterLabel(name);
+		}
+	}
+	printf("There is no enough space!");
+	return 0;
 }

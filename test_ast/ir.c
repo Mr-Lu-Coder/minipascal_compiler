@@ -1,4 +1,4 @@
-#include <stdio.h>
+﻿#include <stdio.h>
 #include <string.h>
 #include "ir.h"
 #include "table.h"
@@ -58,6 +58,7 @@ int GEN(char *op, int arg1, int arg2, int result)
 	return NXQ - 1;
 }
 
+
 int Merge(int p1, int p2)  //p1添到p2的后面
 {
 	int p;
@@ -81,7 +82,7 @@ int Merge(int p1, int p2)  //p1添到p2的后面
 void BackPatch(int p, int t)   //回填
 {
 	int q = p;
-	printf("%d %d", p, t);
+	//printf("%d %d", p, t);
 	while (q) {
 		int q1 = QuaterList[q].result;
 		QuaterList[q].result = t;

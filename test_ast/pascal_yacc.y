@@ -9,13 +9,16 @@
 #include "ir.h"
 #include "table.h"
 #include "pascal_lex.h"
+#include "queue.h"
+
 extern int line_number;
 int yyerror(char*);
 
 #define INT 0
 #define REAL 1
 #define ARRAY 2
-
+LinkQueue *case_queue;
+QElemType item;
 
 %}
 %start    ProgDef
@@ -114,12 +117,21 @@ int yyerror(char*);
 		int U;
 		struct node* nd;
 	}OneDim_node;
+	//case 节点的类型
+	struct {
+		int L_cnt;
+		int T;
+		int check_id;
+		int next_id;
+		struct node* nd;
+	}case_node;
 
 }
 /*Define const:  */
 %token <str>   	Iden		300
 %token <str>   	IntNo		301
 %token <str>  	RealNo		302
+%token <str>  	CHAR		303
 /*Define keywords here:*/
 %token	<str>  	Program		400
 %token	<str>  	Begin		401
@@ -143,6 +155,7 @@ int yyerror(char*);
 %token	<str>	Array		419
 %token	<str>	OneDimString	420
 %token	<str>	Goto	    421
+%token	<str>	Case	    422
 /*Define double_character terminates:   */
 %token			LE			500
 %token			GE			501
@@ -198,6 +211,12 @@ int yyerror(char*);
 %type <OneDim_node>OneDim
 %type <str_node>Label
 %type <str_node>LabelDef
+%type <str_node>case_const
+
+%type <case_node>InCase 
+%type <case_node>CaseStart  
+%type <case_node>CaseWithConst  
+%type <case_node>CaseWithElse 
 
 
 %%
@@ -844,7 +863,7 @@ Statement:	AsignState
 		$$.nd = cur;
 		$$.CH = 0;
 		//内部逻辑
-		puts($2.str);
+		//puts($2.str);
 		int i = LookUpLabel($2.str);
 		//printf("find result i:  %d\n", i);
 		//该标号是首次出现
@@ -877,7 +896,53 @@ Statement:	AsignState
 		add_son_node($$.nd, node1);
 		add_brother_node(node1, $2.nd);
 	}
+	|CaseWithElse Statement End
+{
+	
 
+	//给左边非终结符赋值
+	//printf("goto label****\n");
+	struct node* cur;
+	complete_init_node(&cur, "NULL");
+	$$.nd = cur;
+	$$.CH = 0;
+
+
+	struct node* node1;
+	complete_init_node(&node1, "End");
+
+	set_node_val_str($1.nd, "CaseWithElse");
+	set_node_val_str($2.nd, "Statement");
+	//关系
+	add_son_node($$.nd, $1.nd);
+	add_brother_node($1.nd, $2.nd);
+	add_brother_node($2.nd, node1);
+
+	//内部逻辑
+	//statement 结束后  goto next
+	//未定义，需要拉链
+	int n = NXQ;
+	GEN("j", 0, 0, LabelList[$1.next_id].ADDR);
+	LabelList[$1.next_id].ADDR = n;	
+
+
+	
+	//首先对check_id进行回填
+	BackPatch(LabelList[$1.check_id].ADDR, NXQ);
+
+	//此时要开始生成if else 的四元式
+	for (int i = 1; i < $1.L_cnt; i++) {
+		DeQueue(case_queue, &item);
+		GEN("case", $1.T, item.arg2, LabelList[item.result].ADDR);
+	}
+	DeQueue(case_queue, &item);
+	GEN("j", 0, 0, LabelList[item.result].ADDR);
+	myDestroyQueue(case_queue);
+	
+	//对next进行回填
+	BackPatch(LabelList[$1.next_id].ADDR, NXQ);
+
+};
 	|
 	{   
 		//给左边非终结符赋值
@@ -905,11 +970,11 @@ LabelDef : Label ':'
 			LabelList[i].DEF = 1;
 			LabelList[i].ADDR = NXQ;
 		}else if (LabelList[i].DEF){
-			//label 重复定义
+			//label 重复定义lushangqi
 			yyerror("Label redefinition!");
 		}else{
 			LabelList[i].DEF = 1;
-			BackLabelPatch(LabelList[i].ADDR, NXQ);
+			BackPatch(LabelList[i].ADDR, NXQ);
 			LabelList[i].ADDR = NXQ;
 		}
 
@@ -1322,7 +1387,10 @@ Expr:		Expr'+'Expr
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
 		$$.nd = cur;
-		$$ = $2;
+
+		$$.type = $2.type;
+		$$.place = $2.place;
+		//$$ = $2;
 
 
 		//初始化右值
@@ -1348,8 +1416,10 @@ Expr:		Expr'+'Expr
 		$$.nd = cur;
 		
 		//对于赋值语句生成四元式
-		GEN(":=", $2.place, 0, $2.place);
-	
+		GEN("-", $2.place, 0, $2.place);
+		$$.type = $2.type;
+		$$.place = $2.place;
+
 		//初始化右值
 		struct node*node1;
 		complete_init_node(&node1, "-");
@@ -1369,9 +1439,9 @@ Expr:		Expr'+'Expr
 		$$.nd = cur;
 		//将变量在符号表中的类型和位置给表达式
 		// !!!!!!!!!!!!!!!!!!!!!!!!!
-		//!!!!!!!!!!!!!!!!!!!!!!!!!!有问题
-
+		//!!!!!!!!!!!!!!!!!!!!!!!!!!有问题 lushangqi
 		//$$.type = INT;
+
 		if (!$1.OFFSET) {
 			$$.place = $1.NO;
 			set_node_val_str($1.nd, "Variable");
@@ -1601,6 +1671,227 @@ BoolExpr_and: BoolExpr And
 		add_brother_node($1.nd, node1);
 
 }
+
+
+
+ 
+
+CaseWithElse: InCase Else
+{
+	
+	//给左边非终结符赋值
+	//printf("goto label****\n");
+	struct node* cur;
+	complete_init_node(&cur, "NULL");
+	$$.nd = cur;
+	
+
+	struct node* node1;
+	complete_init_node(&node1, "Else");
+	set_node_val_str($1.nd, "InCase");
+	//关系
+	add_son_node($$.nd, $1.nd);
+	add_brother_node($1.nd, node1);
+
+
+	int L_id = GetLLabel();
+	if (L_id == 0) {
+		//lushangqi
+	}
+
+	item.arg2 = 0;
+	
+	item.result = L_id;
+	EnQueue(case_queue, item);
+	
+	
+	$$.check_id = $1.check_id;
+	$$.next_id = $1.next_id;
+	$$.T = $1.T;
+	$$.L_cnt = $1.L_cnt + 1;
+	
+	//定义L label.
+	LabelList[L_id].DEF = 1;
+	LabelList[L_id].ADDR = NXQ;
+
+}
+
+InCase : CaseWithConst Statement  ';'
+{
+
+	//给左边非终结符赋值
+	struct node* cur;
+	complete_init_node(&cur, "NULL");
+	$$.nd = cur;
+	
+
+	struct node* node1;
+	complete_init_node(&node1, ";");
+	set_node_val_str($1.nd, "CaseWithConst");
+	set_node_val_str($2.nd, "Statement");
+	//关系
+	add_son_node($$.nd, $1.nd);
+	add_son_node($1.nd, $2.nd);
+	add_brother_node($2.nd, node1);
+
+
+
+	$$.check_id = $1.check_id;
+	$$.next_id = $1.next_id;
+	$$.T = $1.T;
+	$$.L_cnt = $1.L_cnt;
+	//此时statement的四元式已经生成
+
+	// goto next  
+	//未定义，需要拉链
+	int n = NXQ;
+	GEN("j", 0, 0, LabelList[$$.next_id].ADDR);
+	LabelList[$$.next_id].ADDR = n;	
+
+}
+
+CaseWithConst : CaseStart case_const ';'
+{
+
+	//给左边非终结符赋值
+	struct node* cur;
+	complete_init_node(&cur, "NULL");
+	$$.nd = cur;
+	
+
+	struct node* node1;
+	complete_init_node(&node1, ";");
+	set_node_val_str($1.nd, "CaseStart");
+	set_node_val_str($2.nd, "case_const");
+	//关系
+	add_son_node($$.nd, $1.nd);
+	add_son_node($1.nd, $2.nd);
+	add_brother_node($2.nd, node1);
+
+
+
+	//这里找的肯定是没有出现过的，
+	int L_id = GetLLabel();
+	if (L_id == 0) {
+		//lushangqi
+	}
+	
+	//进队列
+	item.arg2 = Entry($2.str);
+	item.result = L_id;
+	EnQueue(case_queue, item);
+
+
+	$$.check_id = $1.check_id;
+	$$.next_id = $1.next_id;
+	$$.T = $1.T;
+	$$.L_cnt = 1;
+	//定义L label.
+	LabelList[L_id].DEF = 1;
+	LabelList[L_id].ADDR = NXQ;
+
+}
+| InCase case_const ';'
+{
+
+	//给左边非终结符赋值
+	struct node* cur;
+	complete_init_node(&cur, "NULL");
+	$$.nd = cur;
+	
+
+	struct node* node1;
+	complete_init_node(&node1, ";");
+	set_node_val_str($1.nd, "InCase");
+	set_node_val_str($2.nd, "case_const");
+	//关系
+	add_son_node($$.nd, $1.nd);
+	add_son_node($1.nd, $2.nd);
+	add_brother_node($2.nd, node1);
+
+
+	int L_id = GetLLabel();
+	if (L_id == 0) {
+		//lushangqi
+	}
+
+	//进队列
+	item.arg2 = Entry($2.str);
+	item.result = L_id;
+	EnQueue(case_queue, item);
+
+	$$.check_id = $1.check_id;
+	$$.next_id = $1.next_id;
+	$$.T = $1.T;
+	$$.L_cnt = $1.L_cnt + 1;
+	//此时statement的四元式已经生成
+
+	//定义L label.
+	LabelList[L_id].DEF = 1;
+	LabelList[L_id].ADDR = NXQ;
+
+}
+CaseStart : Case Expr Of
+{
+	//给左边非终结符赋值
+	struct node* cur;
+	complete_init_node(&cur, "NULL");
+	$$.nd = cur;
+	
+
+	struct node* node1, *node2;
+	complete_init_node(&node1, "Case");
+	complete_init_node(&node2, "Of");
+	set_node_val_str($2.nd, "Expr");
+	//关系
+	add_son_node($$.nd, node1);
+	add_son_node(node1, $2.nd);
+	add_brother_node($2.nd, node2);
+	
+	//生成check Label 和next label  该label未出现过
+	int check_id = GetCheckLabel();
+	int next_id = GetNextLabel();
+	if (check_id == 0 || next_id == 0) {
+		//lushangqi
+	}
+	$$.check_id = check_id;
+	$$.next_id = next_id;
+
+	int T = NewTemp();
+	GEN(":=", $2.place, 0, T); //T = Expr
+
+	$$.T = T;
+	LabelList[check_id].ADDR = NXQ;   //还没确定，需要拉链
+	GEN("j", 0, 0, 0);		//goto check
+
+	//初始化队列
+	//
+	void InitQueue(case_queue);
+}
+case_const: IntNo{
+		//给左边非终结符赋值
+		struct node* cur;
+		complete_init_node(&cur, "NULL");
+		$$.nd = cur;
+
+		strncpy($$.str, $1, sizeof($1));
+		struct node* node1;
+		complete_init_node(&node1, $1);
+		//关系
+		add_son_node($$.nd, node1);
+	  }
+	|CHAR{
+		//给左边非终结符赋值
+		struct node* cur;
+		complete_init_node(&cur, "NULL");
+		$$.nd = cur;
+
+		strncpy($$.str, $1, sizeof($1));
+		struct node* node1;
+		complete_init_node(&node1, $1);
+		//关系
+		add_son_node($$.nd, node1);
+	}
 
 ExprList: ExprList ',' Expr
 		{

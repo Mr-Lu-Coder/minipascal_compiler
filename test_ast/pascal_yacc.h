@@ -48,6 +48,7 @@ extern int yydebug;
     Iden = 300,
     IntNo = 301,
     RealNo = 302,
+    CHAR = 303,
     Program = 400,
     Begin = 401,
     End = 402,
@@ -70,6 +71,7 @@ extern int yydebug;
     Array = 419,
     OneDimString = 420,
     Goto = 421,
+    Case = 422,
     LE = 500,
     GE = 501,
     NE = 502,
@@ -84,7 +86,7 @@ extern int yydebug;
 typedef union YYSTYPE YYSTYPE;
 union YYSTYPE
 {
-#line 23 "pascal_yacc.y" /* yacc.c:1909  */
+#line 26 "pascal_yacc.y" /* yacc.c:1909  */
 
 	int Iv;                //类型                         
 	int CH;                //CH表示链             
@@ -179,9 +181,17 @@ union YYSTYPE
 		int U;
 		struct node* nd;
 	}OneDim_node;
+	//case 节点的类型
+	struct {
+		int L_cnt;
+		int T;
+		int check_id;
+		int next_id;
+		struct node* nd;
+	}case_node;
 
 
-#line 185 "pascal_yacc.h" /* yacc.c:1909  */
+#line 195 "pascal_yacc.h" /* yacc.c:1909  */
 };
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1
