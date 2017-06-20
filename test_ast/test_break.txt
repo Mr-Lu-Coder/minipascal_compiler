@@ -5,7 +5,7 @@ Begin
     while j do
     begin
     k := 4+5;
-    if k = j then continue;
+    if k = j then continue
     else break;
     end;
    }

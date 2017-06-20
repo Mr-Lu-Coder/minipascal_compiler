@@ -6,9 +6,12 @@
 #include "table.h"
 #include "pascal_yacc.h"
 #include "util.h"
+
+
 #define INT 0
 #define REAL 1
 #define ARRAY 2
+#define BOOL 3
 
 table_variable VarList[TABLE_MAX_VAR_NUM];//
 array_variable TypeList[TABLE_MAX_VAR_NUM];
@@ -84,7 +87,10 @@ void OutputVarList(void)
 		else if (VarList[i].type == INT){
 			printf(" INTEGER\n");
 		}
-		else {
+		else if (VarList[i].type == BOOL){
+			printf(" BOOL  \n");
+		}
+		else if (VarList[i].type == ARRAY){
 			if (VarList[i].Iv == INT)
 				printf("INTEGER ARRAY\n");
 

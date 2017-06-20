@@ -1,10 +1,10 @@
 Program a;
-Var j,k:real;
+Var i,j,k:real;
 Begin
-    j:=1;
-    case j of
-    1:k:=1;
-    2:k:=2;
-    else k:=3;
-    end;
+    label: j:=1;
+    i:=2;
+    loop : i:=i+1;
+    j:=i+3;
+    if i < 10 then goto loop;
+    {loop: i:=1;}
 End.

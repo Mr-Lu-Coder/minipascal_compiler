@@ -1,6 +1,31 @@
 {Program a;
-
 Var i,j:integer;k:real;k:array [1..10] of integer;
+Begin
+    k:=1.7;
+    i:=5;
+    if i<5 then
+        if i>=6 then 
+	i:=7
+        else i:= 8
+    else i:=9;
+End.
+}
+
+Program a;
+Var i,j:integer;k:real;
+Begin
+    g:=1.7;
+    i:=5;
+    if i<5 then
+        if i>=6 then 
+	i:=7
+        else i:= 8
+    else i:=9;
+End.
+
+{
+Program a;
+Var i,j:intego;k:real;
 Begin
     k:=1.7;
     i:=5;
@@ -15,24 +40,11 @@ End.
 Program a;
 Var i,j:integer;k:real;
 Begin
-    g:=1.7;
+    &&&aak:=1.7;
     i:=5;
     if i<5 then
         if i>=6 then 
 	i:=7
         else i:= 8
     else i:=9;
-End.
-}
-
-Program a;
-Var i,j:intego;k:real;
-Begin
-    k:=1.7;
-    i:=5;
-    if i<5 then
-        if i>=6 then 
-	i:=7
-        else i:= 8
-    else i:=9;
-End.
+End.}

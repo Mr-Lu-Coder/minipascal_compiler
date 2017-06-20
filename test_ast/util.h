@@ -8,7 +8,7 @@
 #define ILLEGALIDEN 101
 #define UNRE_COG_SYMBOL 102
 
-//语义错误
+//语法错误
 #define UNDEF_SIM_VAR 103
 #define UNDEF_ARRAY 104
 #define UNDEFINE_VAR 110
@@ -21,6 +21,13 @@
 //语法错误
 #define SYNTAXERROR 109
 
+//语义错误
+#define BOOL_OP_ERROR 111
+#define LABEL_REDEF 113
+
+
+//内部错误
+#define INNER_ERROR 112
 
 #define NON_ERROR 0
 extern int line_number;

@@ -4,7 +4,7 @@ Var i,j:integer;
 Begin
     i:=5;
     j:=1;
-    if i<5 then
+    if i<5 and j > 4 then
     begin
         while j < 10 do j := j + 1;
         do j := j - 1 while j >= 1;

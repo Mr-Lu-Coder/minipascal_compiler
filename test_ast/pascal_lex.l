@@ -51,6 +51,7 @@ white		[\t\n\040]
 [Cc][Aa][Ss][Ee]						{ECHO;return Case;}
 [Bb][Rr][Ee][Aa][Kk]					{ECHO;return Break;}
 [Cc][Oo][Nn][Tt][Ii][Nn][Uu][Ee]		{ECHO;return Continue;}
+[Bb][Oo][Oo][Ll][Ee][Aa][Nn]			{ECHO;return Boolean;}
 \'.\'	 													{ECHO;strcpy(yylval.str,yytext);return CHAR;}
 ({d}+(\.{d}*)?[Ee]([+-])?{d}+)|({d}*\.{d}+[Ee]([+-])?{d}+)	{ECHO;strcpy(yylval.str,yytext);return RealNo;}
 {d}+\.{d}*|{d}*\.{d}+										{ECHO;strcpy(yylval.str,yytext);return RealNo;}

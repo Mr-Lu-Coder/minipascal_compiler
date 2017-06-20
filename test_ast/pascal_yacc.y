@@ -21,6 +21,7 @@ int yyerror(char*);
 #define INT 0
 #define REAL 1
 #define ARRAY 2
+#define BOOL 3
 
 #define WHILE 1
 #define FOR 2
@@ -176,6 +177,7 @@ LoopStack_ *stack_item, stacknode;
 %token	<str>	Case	    422
 %token	<str>	Break	    423
 %token	<str>	Continue	424
+%token	<str>	Boolean 	425
 /*Define double_character terminates:   */
 %token			LE			500
 %token			GE			501
@@ -183,8 +185,9 @@ LoopStack_ *stack_item, stacknode;
 %token			Asign		503
 %token			ERRORCHAR	600
 
-%left 		Or
+
 %left		And
+%left 		Or
 %nonassoc  	Not
 %nonassoc '<' '>' '=' LE GE NE
 %left '+' '-'
@@ -435,6 +438,24 @@ Type:		Integer
 
 
 		}
+	|	Boolean
+		{
+		//printf("REALAAA\n");
+		//初始化左值
+		struct node* cur;
+		complete_init_node(&cur, "NULL");
+		$$.nd = cur;
+		//初始化右值
+		//类型设置为实型
+		$$.type = BOOL;
+		$$.Iv = 0;
+		struct node *node1;
+		complete_init_node(&node1, "Boolean");
+
+		add_son_node($$.nd, node1);
+
+
+		}
 	|  TypeFirst ']' Of Integer
 		{
 		//printf("REALAAA\n");
@@ -482,6 +503,33 @@ Type:		Integer
 		complete_init_node(&node1, "]");
 		complete_init_node(&node2, "Of");
 		complete_init_node(&node3, "Real");
+		set_node_val_str($1.nd,"TypeFirst");
+
+		//建立关系
+		add_son_node($$.nd ,$1.nd);
+		add_brother_node($1.nd,node1); 
+		add_brother_node(node1,node2);  
+		add_brother_node(node2,node3);  
+		}
+	| TypeFirst ']' Of Boolean
+		{
+		//printf("REALAAA\n");
+		//初始化左值
+		struct node* cur;
+		complete_init_node(&cur, "NULL");
+		$$.nd = cur;
+
+		//初始化右值
+		//类型设置为实型
+		$$.type = ARRAY;
+		$$.Iv = BOOL;
+		//注意上传数组在类型表中的位置
+		$$.array_no = $1.NO;
+
+		struct node *node1, *node2, *node3;
+		complete_init_node(&node1, "]");
+		complete_init_node(&node2, "Of");
+		complete_init_node(&node3, "Boolean");
 		set_node_val_str($1.nd,"TypeFirst");
 
 		//建立关系
@@ -763,7 +811,11 @@ Statement:	AsignState
 
 		//此时栈顶的break_ch出现
 		/*处理break， continue*/
-		top(&stack_item);  //lushangqi
+		top(&stack_item);  
+		if (stack_item == NULL) {
+			error_number = INNER_ERROR;
+			yyerror("stack_item is NULL");
+		}
 		//printf("stack_item->breakch %d\n", stack_item->break_ch);
 		BackPatch(stack_item->break_ch, NXQ);
 		//同时弹出栈顶元素
@@ -793,7 +845,11 @@ Statement:	AsignState
 
 		//此时栈顶的break_ch出现
 		/*处理break， continue*/
-		top(&stack_item);  //lushangqi
+		top(&stack_item);  
+		if (stack_item == NULL) {
+			error_number = INNER_ERROR;
+			yyerror("stack_item is NULL");
+		}
 		BackPatch(stack_item->break_ch, NXQ);
 		//同时弹出栈顶元素
 		pop();
@@ -822,7 +878,11 @@ Statement:	AsignState
 
 		//此时栈顶的break_ch出现
 		/*处理break， continue*/
-		top(&stack_item);  //lushangqi
+		top(&stack_item);  
+		if (stack_item == NULL) {
+			error_number = INNER_ERROR;
+			yyerror("stack_item is NULL");
+		}
 		BackPatch(stack_item->break_ch, NXQ);
 		//同时弹出栈顶元素
 		pop();
@@ -867,7 +927,11 @@ Statement:	AsignState
 
 		//此时栈顶的continue_ch出现
 		/*处理break， continue*/
-		top(&stack_item);  //lushangqi
+		top(&stack_item); 
+		if (stack_item == NULL) {
+			error_number = INNER_ERROR;
+			yyerror("stack_item is NULL");
+		}
 		BackPatch(stack_item->continue_ch, NXQ);
 
 		GEN("+", $1.place, Entry("1"), $1.place);
@@ -880,7 +944,11 @@ Statement:	AsignState
 		
 		//此时栈顶的break_ch出现
 		/*处理break， continue*/
-		top(&stack_item);  //lushangqi
+		top(&stack_item);  
+		if (stack_item == NULL) {
+			error_number = INNER_ERROR;
+			yyerror("stack_item is NULL");
+		}
 		BackPatch(stack_item->break_ch, NXQ);
 		//同时弹出栈顶元素
 		pop();
@@ -1021,9 +1089,15 @@ Statement:	AsignState
 
 		//栈为空表明有错
 		if (is_empty()) {
-			//lushangqi!!!!!
+			error_number = INNER_ERROR;
+			yyerror("stack is NULL");
+			
 		}
 		top(&stack_item);
+		if (stack_item == NULL) {
+			error_number = INNER_ERROR;
+			yyerror("stack_item is NULL");
+		}
 		//四种循环都是直接跳出，且跳出的NXQ都是循环的下边
 		int n = NXQ;
 		if (stack_item == NULL) {
@@ -1036,6 +1110,10 @@ Statement:	AsignState
 		//printf("breck_ch %d", stack_item->break_ch);
 		//printf("GG:%d", stack_item->break_ch);
 		top(&stack_item);
+		if (stack_item == NULL) {
+			error_number = INNER_ERROR;
+			yyerror("stack_item is NULL");
+		}
 		//printf("GG:%d", stack_item->break_ch);
 		//printf("end4GG");
 		
@@ -1055,9 +1133,14 @@ Statement:	AsignState
 		add_son_node($$.nd, node1);
 		//栈为空表明有错
 		if (is_empty()) {
-			//lushangqi!!!!!
+			error_number = INNER_ERROR;
+			yyerror("stack is NULL");
 		}
 		top(&stack_item);
+		if (stack_item == NULL) {
+			error_number = INNER_ERROR;
+			yyerror("stack_item is NULL");
+		}
 		switch(stack_item->type) {
 			case WHILE:{
 				GEN("j", 0, 0, stack_item->loop);
@@ -1120,7 +1203,8 @@ LabelDef : Label ':'
 			LabelList[i].DEF = 1;
 			LabelList[i].ADDR = NXQ;
 		}else if (LabelList[i].DEF){
-			//label 重复定义lushangqi
+			//label 重复定义
+			error_number = LABEL_REDEF;
 			yyerror("Label redefinition!");
 		}else{
 			LabelList[i].DEF = 1;
@@ -1372,6 +1456,10 @@ Expr:		Expr'+'Expr
 		//printf("Expr+expr");
 		int T = NewTemp();
 		//对于算数操作生成四元式,如果有一个是real就要把int型进行强制转换
+		if ($1.type == BOOL || $3.type == BOOL) {
+		    error_number = BOOL_OP_ERROR;
+			yyerror("+");
+		}
 		if ($1.type == INT && $3.type == INT)
 		{
 			GEN("+", $1.place, $3.place, T);
@@ -1415,7 +1503,10 @@ Expr:		Expr'+'Expr
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
 		$$.nd = cur;
-		
+		if ($1.type == BOOL || $3.type == BOOL) {
+		    error_number = BOOL_OP_ERROR;
+			yyerror("-");
+		}
 		int T = NewTemp();
 		//对于算数操作生成四元式,如果有一个是real就要把int型进行强制转换
 		if ($1.type == INT && $3.type == INT)
@@ -1461,7 +1552,10 @@ Expr:		Expr'+'Expr
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
 		$$.nd = cur;
-		
+		if ($1.type == BOOL || $3.type == BOOL) {
+		    error_number = BOOL_OP_ERROR;
+			yyerror("*");
+		}
 		int T = NewTemp();
 		//对于算数操作生成四元式,如果有一个是real就要把int型进行强制转换
 		if ($1.type == INT && $3.type == INT)
@@ -1509,7 +1603,10 @@ Expr:		Expr'+'Expr
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
 		$$.nd = cur;
-		
+		if ($1.type == BOOL || $3.type == BOOL) {
+		    error_number = BOOL_OP_ERROR;
+			yyerror("/");
+		}
 		int T = NewTemp();
 		//对于算数操作生成四元式,如果有一个是real就要把int型进行强制转换
 		if ($1.type == INT && $3.type == INT)
@@ -1606,8 +1703,6 @@ Expr:		Expr'+'Expr
 		complete_init_node(&cur, "NULL");
 		$$.nd = cur;
 		//将变量在符号表中的类型和位置给表达式
-		// !!!!!!!!!!!!!!!!!!!!!!!!!
-		//!!!!!!!!!!!!!!!!!!!!!!!!!!有问题 lushangqi
 		
 		if (!$1.OFFSET) {
 			$$.place = $1.NO;
@@ -1633,7 +1728,7 @@ Expr:		Expr'+'Expr
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
 		$$.nd = cur;
-		//lushangqi   上传type
+		//   上传type
 		$$.type = $1.type;
 
 		set_node_val_str($1.nd, "Const");
@@ -1648,7 +1743,7 @@ Expr:		Expr'+'Expr
 
 BoolExpr:	Expr RelationOp Expr
 		{
-			//printf("Bool op Bool\n");
+		//printf("Bool op Bool\n");
 		//给左边非终结符赋值
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
@@ -1677,6 +1772,7 @@ BoolExpr:	Expr RelationOp Expr
 		}
 	|	BoolExpr_and BoolExpr
 	    {
+		//printf("bool_and boolexpr to bool");
 		//给左边非终结符赋值
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
@@ -1695,6 +1791,7 @@ BoolExpr:	Expr RelationOp Expr
 		}
 	|	BoolExpr_or BoolExpr
 	    {
+		//printf("bool_or boolexpr to bool");
 		//给左边非终结符赋值
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
@@ -1796,6 +1893,7 @@ BoolExpr:	Expr RelationOp Expr
 	;
 BoolExpr_or: BoolExpr Or
 {
+		//printf("to bool_or");
 		//给左边非终结符赋值
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
@@ -1819,6 +1917,7 @@ BoolExpr_or: BoolExpr Or
 
 BoolExpr_and: BoolExpr And
 {
+       //printf("to bool_and");
 		//给左边非终结符赋值
 		struct node* cur;
 		complete_init_node(&cur, "NULL");
@@ -1865,7 +1964,8 @@ CaseWithElse: InCase Else
 
 	int L_id = GetLLabel();
 	if (L_id == 0) {
-		//lushangqi
+		error_number = INNER_ERROR;
+		yyerror("can not find an empty Label id!");
 	}
 
 	item.arg2 = 0;
@@ -1943,7 +2043,8 @@ CaseWithConst : CaseStart case_const ':'
 	//这里找的肯定是没有出现过的，
 	int L_id = GetLLabel();
 	if (L_id == 0) {
-		//lushangqi
+		error_number = INNER_ERROR;
+		yyerror("can not find an empty Label id!");
 	}
 	
 	//进队列
@@ -1982,7 +2083,8 @@ CaseWithConst : CaseStart case_const ':'
 
 	int L_id = GetLLabel();
 	if (L_id == 0) {
-		//lushangqi
+		error_number = INNER_ERROR;
+		yyerror("can not find a empty Label id!");
 	}
 
 	//进队列
@@ -2023,7 +2125,8 @@ CaseStart : Case Expr Of
 	int check_id = GetCheckLabel();
 	int next_id = GetNextLabel();
 	if (check_id == 0 || next_id == 0) {
-		//lushangqi
+		error_number = INNER_ERROR;
+		yyerror("can not find an empty Label id!");
 	}
 	$$.check_id = check_id;
 	$$.next_id = next_id;
@@ -2341,7 +2444,11 @@ DSW: DO Statement While
 
 	/*处理break， continue*/
 	//此时真正应该判断的语句出现
-	top(&stack_item);  //lushangqi
+	top(&stack_item);  
+	if (stack_item == NULL) {
+			error_number = INNER_ERROR;
+			yyerror("stack_item is NULL");
+	}
 	BackPatch(stack_item->continue_ch, NXQ);
 
 
@@ -2400,7 +2507,11 @@ RSU: RE Statement Until
 
 	/*处理break， continue*/
 	//此时真正应该判断的语句出现
-	top(&stack_item);  //lushangqi
+	top(&stack_item);  
+	if (stack_item == NULL) {
+			error_number = INNER_ERROR;
+			yyerror("stack_item is NULL");
+	}
 	BackPatch(stack_item->continue_ch, NXQ);
 
 	//初始化右值
@@ -2434,6 +2545,26 @@ int yyerror(char *errstr)
 		}
 		case UNDEFINE_VAR :{
 		    printf("Var %s is not defined!\n", errstr);
+			break;
+		}
+		case ILLEGALIDEN :{
+		    printf("%s is illegal Identifier!\n", errstr);
+			break;
+		}
+		case UNRE_COG_SYMBOL :{
+		    printf("%s can not be recognized!\n", errstr);
+			break;
+		}
+		case BOOL_OP_ERROR :{
+		    printf("Bool VAR cannot be %s\n", errstr);
+			break;
+		}
+		case LABEL_REDEF :{
+		    printf("%s\n", errstr);
+			break;
+		}
+		case INNER_ERROR :{
+		    printf("%s\n", errstr);
 			break;
 		}
 		default :{
